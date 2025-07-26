@@ -1,0 +1,6 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Redireciona todas as requisições para a pasta Laravel /public
+    RewriteRule ^(.*)$ ../tasksskala-laravel/public/$1 [L]
+</IfModule>
