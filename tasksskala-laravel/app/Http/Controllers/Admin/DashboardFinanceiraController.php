@@ -88,7 +88,7 @@ class DashboardFinanceiraController extends Controller
         $lucroProjetado = $totalReceber - $totalPagar;
         
         // Saldo em contas bancárias
-        $saldoBancario = ContaBancaria::where('ativo', true)->sum('saldo');
+        $saldoBancario = ContaBancaria::where('ativo', true)->sum('saldo_atual');
         
         // Fluxo de caixa diário do mês
         $diasNoMes = Carbon::create($ano, $mes)->daysInMonth;

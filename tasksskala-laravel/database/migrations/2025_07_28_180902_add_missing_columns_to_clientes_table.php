@@ -86,10 +86,15 @@ return new class extends Migration
         
         // Add unique index to cpf_cnpj
         Schema::table('clientes', function (Blueprint $table) {
-            $table->unique('cpf_cnpj');
-            $table->index('nome');
-            $table->index('tipo_pessoa');
-            $table->index('ativo');
+            if (!DB::select("SHOW INDEX FROM clientes WHERE Key_name = 'clientes_cpf_cnpj_unique'")) {
+                $table->unique('cpf_cnpj');
+            }
+            if (!DB::select("SHOW INDEX FROM clientes WHERE Key_name = 'clientes_nome_index'")) {
+                $table->index('nome');
+            }
+            if (!DB::select("SHOW INDEX FROM clientes WHERE Key_name = 'clientes_tipo_pessoa_index'")) {
+                $table->index('tipo_pessoa');
+            }
         });
     }
 
