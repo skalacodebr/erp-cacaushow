@@ -133,7 +133,9 @@
             <!-- Gráfico Comparativo -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h2 class="text-xl font-bold mb-4">Visualização Comparativa</h2>
-                <canvas id="graficoComparacao" width="400" height="200"></canvas>
+                <div style="position: relative; height: 400px;">
+                    <canvas id="graficoComparacao"></canvas>
+                </div>
             </div>
         </div>
 
@@ -250,13 +252,17 @@
             <!-- Fluxo de Caixa Diário -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h2 class="text-xl font-bold mb-4">Fluxo de Caixa Diário</h2>
-                <canvas id="graficoFluxoDiario" width="400" height="200"></canvas>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="graficoFluxoDiario"></canvas>
+                </div>
             </div>
 
             <!-- Evolução Mensal -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h2 class="text-xl font-bold mb-4">Evolução Últimos 6 Meses</h2>
-                <canvas id="graficoEvolucao" width="400" height="200"></canvas>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="graficoEvolucao"></canvas>
+                </div>
             </div>
         </div>
 
@@ -280,7 +286,9 @@
                         </div>
                         @endforeach
                     </div>
-                    <canvas id="graficoDespesasCategoria" class="mt-4" width="400" height="200"></canvas>
+                    <div style="position: relative; height: 200px;" class="mt-4">
+                        <canvas id="graficoDespesasCategoria"></canvas>
+                    </div>
                 @else
                     <p class="text-gray-500">Nenhuma despesa registrada no período.</p>
                 @endif
@@ -304,7 +312,9 @@
                         </div>
                         @endforeach
                     </div>
-                    <canvas id="graficoReceitasCategoria" class="mt-4" width="400" height="200"></canvas>
+                    <div style="position: relative; height: 200px;" class="mt-4">
+                        <canvas id="graficoReceitasCategoria"></canvas>
+                    </div>
                 @else
                     <p class="text-gray-500">Nenhuma receita registrada no período.</p>
                 @endif
