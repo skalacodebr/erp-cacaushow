@@ -25,16 +25,23 @@
             </div>
 
             <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="cliente_nome">
-                    Nome do Cliente
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="cliente_id">
+                    Cliente
                 </label>
-                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline @error('cliente_nome') border-red-500 @enderror" 
-                       id="cliente_nome" 
-                       type="text" 
-                       name="cliente_nome" 
-                       value="{{ old('cliente_nome', $conta->cliente_nome) }}" 
-                       placeholder="Digite o nome do cliente">
-                @error('cliente_nome')
+                <select class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline @error('cliente_id') border-red-500 @enderror" 
+                        id="cliente_id" 
+                        name="cliente_id">
+                    <option value="">Selecione um cliente...</option>
+                    @foreach($clientes as $cliente)
+                        <option value="{{ $cliente->id }}" {{ old('cliente_id', $conta->cliente_id) == $cliente->id ? 'selected' : '' }}>
+                            {{ $cliente->nome }} 
+                            @if($cliente->cpf_cnpj)
+                                - {{ $cliente->cpf_cnpj_formatted }}
+                            @endif
+                        </option>
+                    @endforeach
+                </select>
+                @error('cliente_id')
                     <p class="text-red-500 text-xs italic">{{ $message }}</p>
                 @enderror
             </div>
