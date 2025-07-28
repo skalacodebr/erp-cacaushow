@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ContaPagar;
 use App\Models\ContaReceber;
+use App\Models\ContaBancaria;
 use App\Models\CategoriaFinanceira;
+use App\Models\Unidade;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,191 +19,260 @@ class DashboardFinanceiraController extends Controller
         // Filtros
         $mesAtual = $request->get('mes', Carbon::now()->month);
         $anoAtual = $request->get('ano', Carbon::now()->year);
+        $unidadeId = $request->get('unidade_id');
+        $comparar = $request->get('comparar', false);
         $periodo = Carbon::create($anoAtual, $mesAtual);
         
-        // Atualizar status de contas vencidas apenas uma vez por sessão
-        $cacheKey = 'dashboard_financeira_atualizacao_' . $mesAtual . '_' . $anoAtual;
-        if (!cache()->has($cacheKey)) {
-            ContaPagar::atualizarContasVencidas();
-            ContaReceber::atualizarContasVencidas();
-            cache()->put($cacheKey, true, now()->addMinutes(5));
+        // Buscar unidades
+        $unidades = Unidade::ativas()->orderBy('nome')->get();
+        
+        // Se comparação está ativa, buscar dados de todas as unidades
+        if ($comparar) {
+            $dadosComparacao = $this->getDadosComparacao($mesAtual, $anoAtual);
+            
+            return view('admin.dashboard-financeira.index', compact(
+                'mesAtual',
+                'anoAtual',
+                'unidades',
+                'comparar',
+                'dadosComparacao'
+            ));
         }
         
-        // Receitas e Despesas do mês - usar cache
-        $cacheKeyMetricas = 'dashboard_financeira_metricas_' . $mesAtual . '_' . $anoAtual;
-        $metricas = cache()->remember($cacheKeyMetricas, now()->addMinutes(5), function() use ($mesAtual, $anoAtual) {
-            $receitasMes = ContaReceber::whereMonth('data_vencimento', $mesAtual)
-                ->whereYear('data_vencimento', $anoAtual)
-                ->where('status', 'recebido')
-                ->sum('valor');
-                
-            $despesasMes = ContaPagar::whereMonth('data_vencimento', $mesAtual)
-                ->whereYear('data_vencimento', $anoAtual)
-                ->where('status', 'pago')
-                ->sum('valor');
-                
-            return [
-                'receitas' => $receitasMes,
-                'despesas' => $despesasMes,
-                'lucro' => $receitasMes - $despesasMes
-            ];
-        });
+        // Dados de uma unidade específica ou geral
+        $dados = $this->getDadosUnidade($mesAtual, $anoAtual, $unidadeId);
         
-        $receitasMes = $metricas['receitas'];
-        $despesasMes = $metricas['despesas'];
-        $lucroMes = $metricas['lucro'];
-        
-        // Análise por categoria - Despesas (otimizado com agregação no banco)
-        $despesasPorCategoria = DB::table('contas_pagar')
-            ->join('categorias_financeiras', 'contas_pagar.categoria_id', '=', 'categorias_financeiras.id')
-            ->whereMonth('contas_pagar.data_vencimento', $mesAtual)
-            ->whereYear('contas_pagar.data_vencimento', $anoAtual)
-            ->where('contas_pagar.status', 'pago')
-            ->groupBy('contas_pagar.categoria_id', 'categorias_financeiras.nome', 'categorias_financeiras.cor', 'categorias_financeiras.tipo_custo')
-            ->select(
-                'categorias_financeiras.nome as categoria',
-                'categorias_financeiras.cor',
-                'categorias_financeiras.tipo_custo',
-                DB::raw('SUM(contas_pagar.valor) as valor'),
-                DB::raw('COUNT(*) as quantidade')
-            )
-            ->orderByDesc('valor')
-            ->get()
-            ->map(function ($item) use ($despesasMes) {
-                return [
-                    'categoria' => $item->categoria,
-                    'cor' => $item->cor,
-                    'tipo_custo' => $item->tipo_custo,
-                    'valor' => (float) $item->valor,
-                    'quantidade' => $item->quantidade,
-                    'percentual' => $despesasMes > 0 ? round(($item->valor / $despesasMes) * 100, 2) : 0
-                ];
-            });
-        
-        // Análise por tipo de custo (otimizado com agregação no banco)
-        $despesasPorTipoCusto = DB::table('contas_pagar')
-            ->leftJoin('categorias_financeiras', 'contas_pagar.categoria_id', '=', 'categorias_financeiras.id')
-            ->whereMonth('contas_pagar.data_vencimento', $mesAtual)
-            ->whereYear('contas_pagar.data_vencimento', $anoAtual)
-            ->where('contas_pagar.status', 'pago')
-            ->groupBy('categorias_financeiras.tipo_custo')
-            ->select(
-                DB::raw('COALESCE(categorias_financeiras.tipo_custo, "outros") as tipo_custo'),
-                DB::raw('SUM(contas_pagar.valor) as total')
-            )
-            ->pluck('total', 'tipo_custo')
-            ->toArray();
+        return view('admin.dashboard-financeira.index', array_merge(
+            compact('mesAtual', 'anoAtual', 'unidades', 'unidadeId', 'comparar'),
+            $dados
+        ));
+    }
+    
+    private function getDadosUnidade($mes, $ano, $unidadeId = null)
+    {
+        // Query base para contas a pagar
+        $queryPagar = ContaPagar::whereMonth('data_vencimento', $mes)
+            ->whereYear('data_vencimento', $ano);
             
-        // Garantir que todos os tipos estejam presentes
-        $despesasPorTipoCusto = array_merge([
-            'fixo' => 0,
-            'variavel' => 0,
-            'pessoal' => 0,
-            'administrativo' => 0,
-            'outros' => 0
-        ], $despesasPorTipoCusto);
+        // Query base para contas a receber
+        $queryReceber = ContaReceber::whereMonth('data_vencimento', $mes)
+            ->whereYear('data_vencimento', $ano);
+            
+        // Filtrar por unidade se especificado
+        if ($unidadeId) {
+            $queryPagar->where('unidade_id', $unidadeId);
+            $queryReceber->where('unidade_id', $unidadeId);
+        }
         
-        // Receitas por categoria (otimizado com agregação no banco)
-        $receitasPorCategoria = DB::table('contas_receber')
-            ->join('categorias_financeiras', 'contas_receber.categoria_id', '=', 'categorias_financeiras.id')
-            ->whereMonth('contas_receber.data_vencimento', $mesAtual)
-            ->whereYear('contas_receber.data_vencimento', $anoAtual)
-            ->where('contas_receber.status', 'recebido')
-            ->groupBy('contas_receber.categoria_id', 'categorias_financeiras.nome', 'categorias_financeiras.cor')
-            ->select(
-                'categorias_financeiras.nome as categoria',
-                'categorias_financeiras.cor',
-                DB::raw('SUM(contas_receber.valor) as valor'),
-                DB::raw('COUNT(*) as quantidade')
-            )
-            ->orderByDesc('valor')
-            ->get()
-            ->map(function ($item) use ($receitasMes) {
-                return [
-                    'categoria' => $item->categoria,
-                    'cor' => $item->cor,
-                    'valor' => (float) $item->valor,
-                    'quantidade' => $item->quantidade,
-                    'percentual' => $receitasMes > 0 ? round(($item->valor / $receitasMes) * 100, 2) : 0
-                ];
-            });
+        // Métricas principais
+        $totalReceber = (clone $queryReceber)->sum('valor');
+        $totalPagar = (clone $queryPagar)->sum('valor');
         
-        // Evolução mensal (últimos 12 meses) - otimizado com cache
-        $cacheKeyEvolucao = 'dashboard_financeira_evolucao_' . $anoAtual . '_' . $mesAtual;
-        $evolucaoMensal = cache()->remember($cacheKeyEvolucao, now()->addHours(1), function() {
-            $evolucao = [];
+        $totalRecebido = (clone $queryReceber)->where('status', 'recebido')->sum('valor');
+        $totalPago = (clone $queryPagar)->where('status', 'pago')->sum('valor');
+        
+        $aReceber = (clone $queryReceber)->where('status', 'pendente')->sum('valor');
+        $aPagar = (clone $queryPagar)->where('status', 'pendente')->sum('valor');
+        
+        $receitasVencidas = (clone $queryReceber)
+            ->where('status', 'pendente')
+            ->where('data_vencimento', '<', Carbon::now())
+            ->sum('valor');
             
-            // Buscar todos os dados de uma vez
-            $inicioRange = Carbon::now()->subMonths(11)->startOfMonth();
-            $fimRange = Carbon::now()->endOfMonth();
+        $despesasVencidas = (clone $queryPagar)
+            ->where('status', 'pendente')
+            ->where('data_vencimento', '<', Carbon::now())
+            ->sum('valor');
+        
+        $lucroRealizado = $totalRecebido - $totalPago;
+        $lucroProjetado = $totalReceber - $totalPagar;
+        
+        // Saldo em contas bancárias
+        $saldoBancario = ContaBancaria::where('ativo', true)->sum('saldo');
+        
+        // Fluxo de caixa diário do mês
+        $diasNoMes = Carbon::create($ano, $mes)->daysInMonth;
+        $fluxoDiario = [];
+        
+        for ($dia = 1; $dia <= $diasNoMes; $dia++) {
+            $data = Carbon::create($ano, $mes, $dia);
             
-            $receitasPorMes = DB::table('contas_receber')
-                ->whereBetween('data_vencimento', [$inicioRange, $fimRange])
-                ->where('status', 'recebido')
-                ->groupBy(DB::raw('YEAR(data_vencimento)'), DB::raw('MONTH(data_vencimento)'))
-                ->select(
-                    DB::raw('YEAR(data_vencimento) as ano'),
-                    DB::raw('MONTH(data_vencimento) as mes'),
-                    DB::raw('SUM(valor) as total')
-                )
-                ->get()
-                ->keyBy(function ($item) {
-                    return $item->ano . '-' . str_pad($item->mes, 2, '0', STR_PAD_LEFT);
-                });
-                
-            $despesasPorMes = DB::table('contas_pagar')
-                ->whereBetween('data_vencimento', [$inicioRange, $fimRange])
-                ->where('status', 'pago')
-                ->groupBy(DB::raw('YEAR(data_vencimento)'), DB::raw('MONTH(data_vencimento)'))
-                ->select(
-                    DB::raw('YEAR(data_vencimento) as ano'),
-                    DB::raw('MONTH(data_vencimento) as mes'),
-                    DB::raw('SUM(valor) as total')
-                )
-                ->get()
-                ->keyBy(function ($item) {
-                    return $item->ano . '-' . str_pad($item->mes, 2, '0', STR_PAD_LEFT);
-                });
+            $queryReceberDia = ContaReceber::whereDate('data_vencimento', $data);
+            $queryPagarDia = ContaPagar::whereDate('data_vencimento', $data);
             
-            for ($i = 11; $i >= 0; $i--) {
-                $data = Carbon::now()->subMonths($i);
-                $chave = $data->format('Y-m');
-                
-                $receitas = isset($receitasPorMes[$chave]) ? (float) $receitasPorMes[$chave]->total : 0;
-                $despesas = isset($despesasPorMes[$chave]) ? (float) $despesasPorMes[$chave]->total : 0;
-                
-                $evolucao[] = [
-                    'mes' => $data->locale('pt_BR')->monthName,
-                    'ano' => $data->year,
-                    'receitas' => $receitas,
-                    'despesas' => $despesas,
-                    'lucro' => $receitas - $despesas
-                ];
+            if ($unidadeId) {
+                $queryReceberDia->where('unidade_id', $unidadeId);
+                $queryPagarDia->where('unidade_id', $unidadeId);
             }
             
-            return $evolucao;
-        });
+            $fluxoDiario[] = [
+                'dia' => $dia,
+                'receitas' => $queryReceberDia->sum('valor'),
+                'despesas' => $queryPagarDia->sum('valor'),
+                'saldo' => $queryReceberDia->sum('valor') - $queryPagarDia->sum('valor')
+            ];
+        }
+        
+        // Top 5 despesas por categoria
+        $despesasPorCategoria = DB::table('contas_pagar')
+            ->join('categorias_financeiras', 'contas_pagar.categoria_id', '=', 'categorias_financeiras.id')
+            ->whereMonth('contas_pagar.data_vencimento', $mes)
+            ->whereYear('contas_pagar.data_vencimento', $ano)
+            ->when($unidadeId, function($query) use ($unidadeId) {
+                return $query->where('contas_pagar.unidade_id', $unidadeId);
+            })
+            ->groupBy('categorias_financeiras.id', 'categorias_financeiras.nome', 'categorias_financeiras.cor')
+            ->select(
+                'categorias_financeiras.nome as categoria',
+                'categorias_financeiras.cor',
+                DB::raw('SUM(contas_pagar.valor) as total'),
+                DB::raw('COUNT(*) as quantidade')
+            )
+            ->orderBy('total', 'desc')
+            ->limit(5)
+            ->get();
+            
+        // Top 5 receitas por categoria
+        $receitasPorCategoria = DB::table('contas_receber')
+            ->join('categorias_financeiras', 'contas_receber.categoria_id', '=', 'categorias_financeiras.id')
+            ->whereMonth('contas_receber.data_vencimento', $mes)
+            ->whereYear('contas_receber.data_vencimento', $ano)
+            ->when($unidadeId, function($query) use ($unidadeId) {
+                return $query->where('contas_receber.unidade_id', $unidadeId);
+            })
+            ->groupBy('categorias_financeiras.id', 'categorias_financeiras.nome', 'categorias_financeiras.cor')
+            ->select(
+                'categorias_financeiras.nome as categoria',
+                'categorias_financeiras.cor',
+                DB::raw('SUM(contas_receber.valor) as total'),
+                DB::raw('COUNT(*) as quantidade')
+            )
+            ->orderBy('total', 'desc')
+            ->limit(5)
+            ->get();
+        
+        // Evolução últimos 6 meses
+        $evolucao = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $data = Carbon::now()->subMonths($i);
+            
+            $queryReceberEvolucao = ContaReceber::whereMonth('data_vencimento', $data->month)
+                ->whereYear('data_vencimento', $data->year);
+            $queryPagarEvolucao = ContaPagar::whereMonth('data_vencimento', $data->month)
+                ->whereYear('data_vencimento', $data->year);
+                
+            if ($unidadeId) {
+                $queryReceberEvolucao->where('unidade_id', $unidadeId);
+                $queryPagarEvolucao->where('unidade_id', $unidadeId);
+            }
+            
+            $evolucao[] = [
+                'mes' => $data->locale('pt_BR')->shortMonthName,
+                'receitas' => $queryReceberEvolucao->sum('valor'),
+                'despesas' => $queryPagarEvolucao->sum('valor')
+            ];
+        }
+        
+        // Próximas contas a vencer (7 dias)
+        $queryProximasReceitas = ContaReceber::with(['cliente', 'categoria'])
+            ->where('status', 'pendente')
+            ->whereBetween('data_vencimento', [Carbon::now(), Carbon::now()->addDays(7)])
+            ->orderBy('data_vencimento');
+            
+        $queryProximasDespesas = ContaPagar::with(['fornecedor', 'categoria'])
+            ->where('status', 'pendente')
+            ->whereBetween('data_vencimento', [Carbon::now(), Carbon::now()->addDays(7)])
+            ->orderBy('data_vencimento');
+            
+        if ($unidadeId) {
+            $queryProximasReceitas->where('unidade_id', $unidadeId);
+            $queryProximasDespesas->where('unidade_id', $unidadeId);
+        }
+        
+        $proximasReceitas = $queryProximasReceitas->limit(5)->get();
+        $proximasDespesas = $queryProximasDespesas->limit(5)->get();
         
         // Indicadores
-        $margemLucro = $receitasMes > 0 ? round(($lucroMes / $receitasMes) * 100, 2) : 0;
-        $percentualPessoal = $receitasMes > 0 ? round(($despesasPorTipoCusto['pessoal'] / $receitasMes) * 100, 2) : 0;
-        $percentualFixo = $receitasMes > 0 ? round(($despesasPorTipoCusto['fixo'] / $receitasMes) * 100, 2) : 0;
-        $percentualVariavel = $receitasMes > 0 ? round(($despesasPorTipoCusto['variavel'] / $receitasMes) * 100, 2) : 0;
+        $margemLucro = $totalReceber > 0 ? round(($lucroProjetado / $totalReceber) * 100, 2) : 0;
+        $inadimplencia = $totalReceber > 0 ? round(($receitasVencidas / $totalReceber) * 100, 2) : 0;
+        $liquidezCorrente = $aPagar > 0 ? round($aReceber / $aPagar, 2) : 0;
         
-        return view('admin.dashboard-financeira.index', compact(
-            'mesAtual',
-            'anoAtual',
-            'receitasMes',
-            'despesasMes',
-            'lucroMes',
-            'margemLucro',
+        return compact(
+            'totalReceber',
+            'totalPagar',
+            'totalRecebido',
+            'totalPago',
+            'aReceber',
+            'aPagar',
+            'receitasVencidas',
+            'despesasVencidas',
+            'lucroRealizado',
+            'lucroProjetado',
+            'saldoBancario',
+            'fluxoDiario',
             'despesasPorCategoria',
-            'despesasPorTipoCusto',
             'receitasPorCategoria',
-            'evolucaoMensal',
-            'percentualPessoal',
-            'percentualFixo',
-            'percentualVariavel'
-        ));
+            'evolucao',
+            'proximasReceitas',
+            'proximasDespesas',
+            'margemLucro',
+            'inadimplencia',
+            'liquidezCorrente'
+        );
+    }
+    
+    private function getDadosComparacao($mes, $ano)
+    {
+        $unidades = Unidade::ativas()->get();
+        $comparacao = [];
+        
+        foreach ($unidades as $unidade) {
+            $queryReceber = ContaReceber::whereMonth('data_vencimento', $mes)
+                ->whereYear('data_vencimento', $ano)
+                ->where('unidade_id', $unidade->id);
+                
+            $queryPagar = ContaPagar::whereMonth('data_vencimento', $mes)
+                ->whereYear('data_vencimento', $ano)
+                ->where('unidade_id', $unidade->id);
+            
+            $totalReceber = (clone $queryReceber)->sum('valor');
+            $totalPagar = (clone $queryPagar)->sum('valor');
+            $totalRecebido = (clone $queryReceber)->where('status', 'recebido')->sum('valor');
+            $totalPago = (clone $queryPagar)->where('status', 'pago')->sum('valor');
+            
+            $comparacao[] = [
+                'unidade' => $unidade,
+                'receitas' => $totalReceber,
+                'despesas' => $totalPagar,
+                'recebido' => $totalRecebido,
+                'pago' => $totalPago,
+                'lucro' => $totalReceber - $totalPagar,
+                'lucro_realizado' => $totalRecebido - $totalPago,
+                'margem' => $totalReceber > 0 ? round((($totalReceber - $totalPagar) / $totalReceber) * 100, 2) : 0
+            ];
+        }
+        
+        // Ordenar por lucro
+        usort($comparacao, function($a, $b) {
+            return $b['lucro'] <=> $a['lucro'];
+        });
+        
+        // Dados consolidados
+        $totais = [
+            'receitas' => array_sum(array_column($comparacao, 'receitas')),
+            'despesas' => array_sum(array_column($comparacao, 'despesas')),
+            'recebido' => array_sum(array_column($comparacao, 'recebido')),
+            'pago' => array_sum(array_column($comparacao, 'pago')),
+            'lucro' => array_sum(array_column($comparacao, 'lucro')),
+            'lucro_realizado' => array_sum(array_column($comparacao, 'lucro_realizado'))
+        ];
+        
+        $totais['margem'] = $totais['receitas'] > 0 ? 
+            round(($totais['lucro'] / $totais['receitas']) * 100, 2) : 0;
+        
+        return [
+            'comparacao' => $comparacao,
+            'totais' => $totais
+        ];
     }
 }
