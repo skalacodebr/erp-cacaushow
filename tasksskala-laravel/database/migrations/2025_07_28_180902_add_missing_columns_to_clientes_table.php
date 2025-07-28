@@ -11,65 +11,85 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Drop foreign key constraints first
-        Schema::table('contas_receber', function (Blueprint $table) {
-            if (Schema::hasColumn('contas_receber', 'cliente_id')) {
-                $table->dropForeign(['cliente_id']);
+        // First, let's just add the missing columns to the existing table
+        Schema::table('clientes', function (Blueprint $table) {
+            // Remove columns that shouldn't be there
+            if (Schema::hasColumn('clientes', 'email_verified_at')) {
+                $table->dropColumn('email_verified_at');
+            }
+            if (Schema::hasColumn('clientes', 'password')) {
+                $table->dropColumn('password');
+            }
+            if (Schema::hasColumn('clientes', 'remember_token')) {
+                $table->dropColumn('remember_token');
+            }
+            
+            // Add missing columns
+            if (!Schema::hasColumn('clientes', 'nome_fantasia')) {
+                $table->string('nome_fantasia')->nullable()->after('nome');
+            }
+            if (!Schema::hasColumn('clientes', 'tipo_pessoa')) {
+                $table->enum('tipo_pessoa', ['fisica', 'juridica'])->default('fisica')->after('nome_fantasia');
+            }
+            if (!Schema::hasColumn('clientes', 'cpf_cnpj')) {
+                $table->string('cpf_cnpj')->nullable()->after('tipo_pessoa');
+            }
+            if (!Schema::hasColumn('clientes', 'rg_ie')) {
+                $table->string('rg_ie')->nullable()->after('cpf_cnpj');
+            }
+            if (!Schema::hasColumn('clientes', 'telefone')) {
+                $table->string('telefone')->nullable()->after('email');
+            }
+            if (!Schema::hasColumn('clientes', 'celular')) {
+                $table->string('celular')->nullable()->after('telefone');
+            }
+            if (!Schema::hasColumn('clientes', 'website')) {
+                $table->string('website')->nullable()->after('celular');
+            }
+            if (!Schema::hasColumn('clientes', 'cep')) {
+                $table->string('cep')->nullable()->after('website');
+            }
+            if (!Schema::hasColumn('clientes', 'endereco')) {
+                $table->string('endereco')->nullable()->after('cep');
+            }
+            if (!Schema::hasColumn('clientes', 'numero')) {
+                $table->string('numero')->nullable()->after('endereco');
+            }
+            if (!Schema::hasColumn('clientes', 'complemento')) {
+                $table->string('complemento')->nullable()->after('numero');
+            }
+            if (!Schema::hasColumn('clientes', 'bairro')) {
+                $table->string('bairro')->nullable()->after('complemento');
+            }
+            if (!Schema::hasColumn('clientes', 'cidade')) {
+                $table->string('cidade')->nullable()->after('bairro');
+            }
+            if (!Schema::hasColumn('clientes', 'estado')) {
+                $table->string('estado', 2)->nullable()->after('cidade');
+            }
+            if (!Schema::hasColumn('clientes', 'limite_credito')) {
+                $table->decimal('limite_credito', 10, 2)->default(0)->after('estado');
+            }
+            if (!Schema::hasColumn('clientes', 'prazo_pagamento')) {
+                $table->integer('prazo_pagamento')->default(30)->after('limite_credito');
+            }
+            if (!Schema::hasColumn('clientes', 'data_cadastro')) {
+                $table->date('data_cadastro')->default(now())->after('prazo_pagamento');
+            }
+            if (!Schema::hasColumn('clientes', 'data_ultima_compra')) {
+                $table->date('data_ultima_compra')->nullable()->after('data_cadastro');
+            }
+            if (!Schema::hasColumn('clientes', 'observacoes')) {
+                $table->text('observacoes')->nullable()->after('ativo');
             }
         });
-
-        // Drop the existing table
-        Schema::dropIfExists('clientes');
         
-        // Recreate with correct structure
-        Schema::create('clientes', function (Blueprint $table) {
-            $table->id();
-            
-            // Dados básicos
-            $table->string('nome');
-            $table->string('nome_fantasia')->nullable();
-            $table->enum('tipo_pessoa', ['fisica', 'juridica'])->default('fisica');
-            $table->string('cpf_cnpj')->unique()->nullable();
-            $table->string('rg_ie')->nullable();
-            
-            // Contato
-            $table->string('email')->nullable();
-            $table->string('telefone')->nullable();
-            $table->string('celular')->nullable();
-            $table->string('website')->nullable();
-            
-            // Endereço
-            $table->string('cep')->nullable();
-            $table->string('endereco')->nullable();
-            $table->string('numero')->nullable();
-            $table->string('complemento')->nullable();
-            $table->string('bairro')->nullable();
-            $table->string('cidade')->nullable();
-            $table->string('estado', 2)->nullable();
-            
-            // Dados financeiros
-            $table->decimal('limite_credito', 10, 2)->default(0);
-            $table->integer('prazo_pagamento')->default(30); // dias
-            $table->date('data_cadastro')->default(now());
-            $table->date('data_ultima_compra')->nullable();
-            
-            // Controle
-            $table->boolean('ativo')->default(true);
-            $table->text('observacoes')->nullable();
-            
-            $table->timestamps();
-            
+        // Add unique index to cpf_cnpj
+        Schema::table('clientes', function (Blueprint $table) {
+            $table->unique('cpf_cnpj');
             $table->index('nome');
-            $table->index('cpf_cnpj');
             $table->index('tipo_pessoa');
             $table->index('ativo');
-        });
-
-        // Recreate foreign key
-        Schema::table('contas_receber', function (Blueprint $table) {
-            if (Schema::hasColumn('contas_receber', 'cliente_id')) {
-                $table->foreign('cliente_id')->references('id')->on('clientes')->nullOnDelete();
-            }
         });
     }
 
