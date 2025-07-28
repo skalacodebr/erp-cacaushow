@@ -1,437 +1,599 @@
 @extends('layouts.admin')
 
+@section('title', 'Dashboard Financeira')
+
 @section('content')
 <div class="container mx-auto px-4 py-8">
-    <!-- Cabeçalho com Filtros -->
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold">Dashboard Financeira</h1>
-        
-        <form method="GET" action="{{ route('admin.dashboard-financeira.index') }}" class="flex space-x-2">
-            <select name="mes" class="rounded-md border-gray-300" onchange="this.form.submit()">
-                @for($i = 1; $i <= 12; $i++)
-                    <option value="{{ $i }}" {{ $mesAtual == $i ? 'selected' : '' }}>
-                        {{ \Carbon\Carbon::create()->month($i)->locale('pt_BR')->monthName }}
-                    </option>
-                @endfor
-            </select>
-            <select name="ano" class="rounded-md border-gray-300" onchange="this.form.submit()">
-                @for($i = date('Y') - 2; $i <= date('Y') + 2; $i++)
-                    <option value="{{ $i }}" {{ $anoAtual == $i ? 'selected' : '' }}>{{ $i }}</option>
-                @endfor
-            </select>
-        </form>
-    </div>
-
-    <!-- Cards de Resumo -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-600">Receitas</p>
-                    <p class="text-2xl font-bold text-green-600">R$ {{ number_format($receitasMes, 2, ',', '.') }}</p>
-                </div>
-                <i class="fas fa-arrow-up text-3xl text-green-500"></i>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-600">Despesas</p>
-                    <p class="text-2xl font-bold text-red-600">R$ {{ number_format($despesasMes, 2, ',', '.') }}</p>
-                </div>
-                <i class="fas fa-arrow-down text-3xl text-red-500"></i>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-600">Lucro/Prejuízo</p>
-                    <p class="text-2xl font-bold {{ $lucroMes >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                        R$ {{ number_format($lucroMes, 2, ',', '.') }}
-                    </p>
-                </div>
-                <i class="fas fa-chart-line text-3xl {{ $lucroMes >= 0 ? 'text-green-500' : 'text-red-500' }}"></i>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-600">Margem de Lucro</p>
-                    <p class="text-2xl font-bold {{ $margemLucro >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                        {{ $margemLucro }}%
-                    </p>
-                </div>
-                <i class="fas fa-percentage text-3xl {{ $margemLucro >= 0 ? 'text-green-500' : 'text-red-500' }}"></i>
-            </div>
-        </div>
-    </div>
-
-    <!-- Indicadores de Custo -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="font-semibold mb-4">Custo com Pessoal</h3>
-            <div class="relative pt-1">
-                <div class="flex mb-2 items-center justify-between">
-                    <div>
-                        <span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-red-600 bg-red-200">
-                            {{ $percentualPessoal }}% do faturamento
-                        </span>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xs font-semibold inline-block text-red-600">
-                            R$ {{ number_format($despesasPorTipoCusto['pessoal'], 2, ',', '.') }}
-                        </span>
-                    </div>
-                </div>
-                <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-red-200">
-                    <div style="width:{{ min($percentualPessoal, 100) }}%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-red-500"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="font-semibold mb-4">Custos Fixos</h3>
-            <div class="relative pt-1">
-                <div class="flex mb-2 items-center justify-between">
-                    <div>
-                        <span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-purple-600 bg-purple-200">
-                            {{ $percentualFixo }}% do faturamento
-                        </span>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xs font-semibold inline-block text-purple-600">
-                            R$ {{ number_format($despesasPorTipoCusto['fixo'], 2, ',', '.') }}
-                        </span>
-                    </div>
-                </div>
-                <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-purple-200">
-                    <div style="width:{{ min($percentualFixo, 100) }}%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-purple-500"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="font-semibold mb-4">Custos Variáveis</h3>
-            <div class="relative pt-1">
-                <div class="flex mb-2 items-center justify-between">
-                    <div>
-                        <span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-yellow-600 bg-yellow-200">
-                            {{ $percentualVariavel }}% do faturamento
-                        </span>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-xs font-semibold inline-block text-yellow-600">
-                            R$ {{ number_format($despesasPorTipoCusto['variavel'], 2, ',', '.') }}
-                        </span>
-                    </div>
-                </div>
-                <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-yellow-200">
-                    <div style="width:{{ min($percentualVariavel, 100) }}%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-yellow-500"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <!-- Despesas por Categoria -->
-        <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold mb-4">Despesas por Categoria</h2>
+    <!-- Header com Filtros -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+            <h1 class="text-3xl font-bold text-gray-800 mb-4 lg:mb-0">Dashboard Financeira</h1>
             
-            @if($despesasPorCategoria->count() > 0)
-                <div style="position: relative; height: 300px; width: 100%;">
-                    <canvas id="despesasChart"></canvas>
-                </div>
+            <form method="GET" action="{{ route('admin.dashboard-financeira.index') }}" class="flex flex-wrap gap-3">
+                <select name="mes" class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    @for($i = 1; $i <= 12; $i++)
+                        <option value="{{ $i }}" {{ $mesAtual == $i ? 'selected' : '' }}>
+                            {{ \Carbon\Carbon::create()->month($i)->locale('pt_BR')->monthName }}
+                        </option>
+                    @endfor
+                </select>
                 
-                <div class="mt-4 space-y-2">
-                    @foreach($despesasPorCategoria as $item)
-                        <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                <select name="ano" class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    @for($i = date('Y') - 2; $i <= date('Y') + 1; $i++)
+                        <option value="{{ $i }}" {{ $anoAtual == $i ? 'selected' : '' }}>{{ $i }}</option>
+                    @endfor
+                </select>
+                
+                <select name="unidade_id" class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Todas as Unidades</option>
+                    @foreach($unidades as $unidade)
+                        <option value="{{ $unidade->id }}" {{ request('unidade_id') == $unidade->id ? 'selected' : '' }}>
+                            {{ $unidade->nome }}
+                        </option>
+                    @endforeach
+                </select>
+                
+                <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    Filtrar
+                </button>
+                
+                <a href="{{ route('admin.dashboard-financeira.index', array_merge(request()->all(), ['comparar' => !$comparar])) }}" 
+                   class="px-6 py-2 {{ $comparar ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700' }} text-white rounded-lg transition">
+                    {{ $comparar ? 'Voltar' : 'Comparar Unidades' }}
+                </a>
+            </form>
+        </div>
+    </div>
+
+    @if($comparar)
+        <!-- Modo Comparação entre Unidades -->
+        <div class="grid grid-cols-1 gap-6">
+            <!-- Resumo Geral -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4">Resumo Consolidado</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600">Receita Total</p>
+                        <p class="text-2xl font-bold text-green-600">R$ {{ number_format($dadosComparacao['totais']['receitas'], 2, ',', '.') }}</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600">Despesa Total</p>
+                        <p class="text-2xl font-bold text-red-600">R$ {{ number_format($dadosComparacao['totais']['despesas'], 2, ',', '.') }}</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600">Lucro Total</p>
+                        <p class="text-2xl font-bold {{ $dadosComparacao['totais']['lucro'] >= 0 ? 'text-blue-600' : 'text-red-600' }}">
+                            R$ {{ number_format($dadosComparacao['totais']['lucro'], 2, ',', '.') }}
+                        </p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600">Margem Média</p>
+                        <p class="text-2xl font-bold text-purple-600">{{ $dadosComparacao['totais']['margem'] }}%</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela Comparativa -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="p-6">
+                    <h2 class="text-xl font-bold mb-4">Comparação entre Unidades</h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unidade</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Receitas</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Despesas</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Lucro</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Margem</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Realizado</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($dadosComparacao['comparacao'] as $dados)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div>
+                                        <div class="text-sm font-medium text-gray-900">{{ $dados['unidade']->nome }}</div>
+                                        <div class="text-sm text-gray-500">{{ $dados['unidade']->codigo }}</div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-green-600 font-medium">
+                                    R$ {{ number_format($dados['receitas'], 2, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-red-600 font-medium">
+                                    R$ {{ number_format($dados['despesas'], 2, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium {{ $dados['lucro'] >= 0 ? 'text-blue-600' : 'text-red-600' }}">
+                                    R$ {{ number_format($dados['lucro'], 2, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $dados['margem'] >= 20 ? 'bg-green-100 text-green-800' : ($dados['margem'] >= 10 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') }}">
+                                        {{ $dados['margem'] }}%
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm {{ $dados['lucro_realizado'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                    R$ {{ number_format($dados['lucro_realizado'], 2, ',', '.') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center text-sm">
+                                    <a href="{{ route('admin.dashboard-financeira.index', ['mes' => $mesAtual, 'ano' => $anoAtual, 'unidade_id' => $dados['unidade']->id]) }}" 
+                                       class="text-blue-600 hover:text-blue-900">
+                                        Ver Detalhes
+                                    </a>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Gráfico Comparativo -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4">Visualização Comparativa</h2>
+                <canvas id="graficoComparacao" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+    @else
+        <!-- Dashboard Normal -->
+        <!-- Cards de Métricas Principais -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <!-- Card Receitas -->
+            <div class="bg-gradient-to-br from-green-400 to-green-600 rounded-lg shadow-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-green-100 text-sm">Total a Receber</p>
+                        <p class="text-3xl font-bold">R$ {{ number_format($totalReceber, 2, ',', '.') }}</p>
+                        <p class="text-sm mt-2">
+                            <span class="text-green-200">Recebido:</span> 
+                            <span class="font-semibold">R$ {{ number_format($totalRecebido, 2, ',', '.') }}</span>
+                        </p>
+                    </div>
+                    <i class="fas fa-arrow-down text-4xl text-green-200"></i>
+                </div>
+            </div>
+
+            <!-- Card Despesas -->
+            <div class="bg-gradient-to-br from-red-400 to-red-600 rounded-lg shadow-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-red-100 text-sm">Total a Pagar</p>
+                        <p class="text-3xl font-bold">R$ {{ number_format($totalPagar, 2, ',', '.') }}</p>
+                        <p class="text-sm mt-2">
+                            <span class="text-red-200">Pago:</span> 
+                            <span class="font-semibold">R$ {{ number_format($totalPago, 2, ',', '.') }}</span>
+                        </p>
+                    </div>
+                    <i class="fas fa-arrow-up text-4xl text-red-200"></i>
+                </div>
+            </div>
+
+            <!-- Card Lucro -->
+            <div class="bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-blue-100 text-sm">Lucro Projetado</p>
+                        <p class="text-3xl font-bold">R$ {{ number_format($lucroProjetado, 2, ',', '.') }}</p>
+                        <p class="text-sm mt-2">
+                            <span class="text-blue-200">Realizado:</span> 
+                            <span class="font-semibold">R$ {{ number_format($lucroRealizado, 2, ',', '.') }}</span>
+                        </p>
+                    </div>
+                    <i class="fas fa-chart-line text-4xl text-blue-200"></i>
+                </div>
+            </div>
+
+            <!-- Card Saldo -->
+            <div class="bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg shadow-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-purple-100 text-sm">Saldo em Contas</p>
+                        <p class="text-3xl font-bold">R$ {{ number_format($saldoBancario, 2, ',', '.') }}</p>
+                        <p class="text-sm mt-2">
+                            <span class="text-purple-200">Liquidez:</span> 
+                            <span class="font-semibold">{{ $liquidezCorrente }}</span>
+                        </p>
+                    </div>
+                    <i class="fas fa-university text-4xl text-purple-200"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Indicadores -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm">Margem de Lucro</p>
+                        <p class="text-2xl font-bold {{ $margemLucro >= 20 ? 'text-green-600' : ($margemLucro >= 10 ? 'text-yellow-600' : 'text-red-600') }}">
+                            {{ $margemLucro }}%
+                        </p>
+                    </div>
+                    <div class="w-16 h-16">
+                        <canvas id="gaugeMargemLucro"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm">Taxa de Inadimplência</p>
+                        <p class="text-2xl font-bold {{ $inadimplencia <= 5 ? 'text-green-600' : ($inadimplencia <= 10 ? 'text-yellow-600' : 'text-red-600') }}">
+                            {{ $inadimplencia }}%
+                        </p>
+                    </div>
+                    <div class="w-16 h-16">
+                        <canvas id="gaugeInadimplencia"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm">Contas Vencidas</p>
+                        <p class="text-2xl font-bold text-red-600">
+                            R$ {{ number_format($receitasVencidas + $despesasVencidas, 2, ',', '.') }}
+                        </p>
+                    </div>
+                    <i class="fas fa-exclamation-triangle text-3xl text-red-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Fluxo de Caixa Diário -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4">Fluxo de Caixa Diário</h2>
+                <canvas id="graficoFluxoDiario" width="400" height="200"></canvas>
+            </div>
+
+            <!-- Evolução Mensal -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4">Evolução Últimos 6 Meses</h2>
+                <canvas id="graficoEvolucao" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Análise por Categoria -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Top Despesas -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4">Top 5 Despesas por Categoria</h2>
+                @if($despesasPorCategoria->count() > 0)
+                    <div class="space-y-3">
+                        @foreach($despesasPorCategoria as $categoria)
+                        <div class="flex items-center justify-between">
                             <div class="flex items-center">
-                                <div class="w-4 h-4 rounded mr-2" style="background-color: {{ $item['cor'] }}"></div>
-                                <span class="text-sm">{{ $item['categoria'] }}</span>
-                                @if($item['tipo_custo'])
-                                    <span class="text-xs text-gray-500 ml-2">({{ ucfirst($item['tipo_custo']) }})</span>
-                                @endif
+                                <div class="w-4 h-4 rounded-full mr-3" style="background-color: {{ $categoria->cor ?? '#6B7280' }}"></div>
+                                <span class="text-sm">{{ $categoria->categoria }}</span>
                             </div>
                             <div class="text-right">
-                                <span class="text-sm font-semibold">R$ {{ number_format($item['valor'], 2, ',', '.') }}</span>
-                                <span class="text-xs text-gray-500 ml-2">{{ $item['percentual'] }}%</span>
+                                <span class="font-semibold">R$ {{ number_format($categoria->total, 2, ',', '.') }}</span>
+                                <span class="text-xs text-gray-500 ml-2">({{ $categoria->quantidade }})</span>
                             </div>
                         </div>
-                    @endforeach
-                </div>
-            @else
-                <p class="text-gray-500 text-center py-8">Nenhuma despesa registrada no período.</p>
-            @endif
-        </div>
+                        @endforeach
+                    </div>
+                    <canvas id="graficoDespesasCategoria" class="mt-4" width="400" height="200"></canvas>
+                @else
+                    <p class="text-gray-500">Nenhuma despesa registrada no período.</p>
+                @endif
+            </div>
 
-        <!-- Receitas por Categoria -->
-        <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold mb-4">Receitas por Categoria</h2>
-            
-            @if($receitasPorCategoria->count() > 0)
-                <div style="position: relative; height: 300px; width: 100%;">
-                    <canvas id="receitasChart"></canvas>
-                </div>
-                
-                <div class="mt-4 space-y-2">
-                    @foreach($receitasPorCategoria as $item)
-                        <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+            <!-- Top Receitas -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4">Top 5 Receitas por Categoria</h2>
+                @if($receitasPorCategoria->count() > 0)
+                    <div class="space-y-3">
+                        @foreach($receitasPorCategoria as $categoria)
+                        <div class="flex items-center justify-between">
                             <div class="flex items-center">
-                                <div class="w-4 h-4 rounded mr-2" style="background-color: {{ $item['cor'] }}"></div>
-                                <span class="text-sm">{{ $item['categoria'] }}</span>
+                                <div class="w-4 h-4 rounded-full mr-3" style="background-color: {{ $categoria->cor ?? '#10B981' }}"></div>
+                                <span class="text-sm">{{ $categoria->categoria }}</span>
                             </div>
                             <div class="text-right">
-                                <span class="text-sm font-semibold">R$ {{ number_format($item['valor'], 2, ',', '.') }}</span>
-                                <span class="text-xs text-gray-500 ml-2">{{ $item['percentual'] }}%</span>
+                                <span class="font-semibold">R$ {{ number_format($categoria->total, 2, ',', '.') }}</span>
+                                <span class="text-xs text-gray-500 ml-2">({{ $categoria->quantidade }})</span>
                             </div>
                         </div>
-                    @endforeach
-                </div>
-            @else
-                <p class="text-gray-500 text-center py-8">Nenhuma receita registrada no período.</p>
-            @endif
+                        @endforeach
+                    </div>
+                    <canvas id="graficoReceitasCategoria" class="mt-4" width="400" height="200"></canvas>
+                @else
+                    <p class="text-gray-500">Nenhuma receita registrada no período.</p>
+                @endif
+            </div>
         </div>
-    </div>
 
-    <!-- Evolução Mensal -->
-    <div class="mt-8 bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold mb-4">Evolução Mensal (Últimos 12 meses)</h2>
-        <div style="position: relative; height: 400px; width: 100%;">
-            <canvas id="evolucaoChart"></canvas>
+        <!-- Próximos Vencimentos -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Próximas Receitas -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4 text-green-600">Próximas Receitas (7 dias)</h2>
+                @if($proximasReceitas->count() > 0)
+                    <div class="space-y-3">
+                        @foreach($proximasReceitas as $conta)
+                        <div class="border-l-4 border-green-500 pl-4 py-2">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-medium">{{ $conta->descricao }}</p>
+                                    <p class="text-sm text-gray-600">
+                                        {{ $conta->cliente ? $conta->cliente->nome : ($conta->cliente_nome ?? 'Sem cliente') }}
+                                    </p>
+                                    <p class="text-xs text-gray-500">
+                                        Vence em {{ Carbon\Carbon::parse($conta->data_vencimento)->format('d/m/Y') }}
+                                    </p>
+                                </div>
+                                <span class="font-bold text-green-600">R$ {{ number_format($conta->valor, 2, ',', '.') }}</span>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-gray-500">Nenhuma receita nos próximos 7 dias.</p>
+                @endif
+            </div>
+
+            <!-- Próximas Despesas -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4 text-red-600">Próximas Despesas (7 dias)</h2>
+                @if($proximasDespesas->count() > 0)
+                    <div class="space-y-3">
+                        @foreach($proximasDespesas as $conta)
+                        <div class="border-l-4 border-red-500 pl-4 py-2">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-medium">{{ $conta->descricao }}</p>
+                                    <p class="text-sm text-gray-600">
+                                        {{ $conta->fornecedor ? $conta->fornecedor->nome : 'Sem fornecedor' }}
+                                    </p>
+                                    <p class="text-xs text-gray-500">
+                                        Vence em {{ Carbon\Carbon::parse($conta->data_vencimento)->format('d/m/Y') }}
+                                    </p>
+                                </div>
+                                <span class="font-bold text-red-600">R$ {{ number_format($conta->valor, 2, ',', '.') }}</span>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-gray-500">Nenhuma despesa nos próximos 7 dias.</p>
+                @endif
+            </div>
         </div>
-    </div>
+    @endif
 </div>
+@endsection
 
-<!-- Chart.js -->
+@push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Performance optimizations for Chart.js
-Chart.defaults.animation = false;
-Chart.defaults.elements.line.borderWidth = 2;
-Chart.defaults.elements.point.radius = 0;
-Chart.defaults.elements.point.hoverRadius = 4;
-
-// Armazenar instâncias dos gráficos
-let chartInstances = {};
-
-// Função para criar gráficos com lazy loading
-function createChartWhenVisible(elementId, createChartFn) {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-    
-    // Se o gráfico já existe, não criar novamente
-    if (chartInstances[elementId]) return;
-    
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting && !chartInstances[elementId]) {
-                const chart = createChartFn();
-                if (chart) {
-                    chartInstances[elementId] = chart;
-                }
-                observer.disconnect();
-            }
-        });
-    }, {
-        rootMargin: '50px'
-    });
-    
-    observer.observe(element);
-}
-
-// Destruir gráficos existentes antes de sair da página
-window.addEventListener('beforeunload', function() {
-    Object.values(chartInstances).forEach(chart => {
-        if (chart) chart.destroy();
-    });
-});
-
 document.addEventListener('DOMContentLoaded', function() {
-    // Gráfico de Despesas com otimizações
-    @if($despesasPorCategoria->count() > 0)
-        createChartWhenVisible('despesasChart', function() {
-            const despesasCtx = document.getElementById('despesasChart').getContext('2d', { 
-                willReadFrequently: false,
-                alpha: false 
-            });
-            
-            return new Chart(despesasCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: {!! json_encode($despesasPorCategoria->pluck('categoria')) !!},
-                    datasets: [{
-                        data: {!! json_encode($despesasPorCategoria->pluck('valor')) !!},
-                        backgroundColor: {!! json_encode($despesasPorCategoria->pluck('cor')) !!},
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            enabled: true,
-                            animation: false
-                        }
-                    },
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
-                    layout: {
-                        padding: 10
-                    }
-                }
-            });
-        });
-    @endif
-
-    // Gráfico de Receitas com otimizações
-    @if($receitasPorCategoria->count() > 0)
-        createChartWhenVisible('receitasChart', function() {
-            const receitasCtx = document.getElementById('receitasChart').getContext('2d', { 
-                willReadFrequently: false,
-                alpha: false 
-            });
-            
-            return new Chart(receitasCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: {!! json_encode($receitasPorCategoria->pluck('categoria')) !!},
-                    datasets: [{
-                        data: {!! json_encode($receitasPorCategoria->pluck('valor')) !!},
-                        backgroundColor: {!! json_encode($receitasPorCategoria->pluck('cor')) !!},
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            enabled: true,
-                            animation: false
-                        }
-                    },
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
-                    layout: {
-                        padding: 10
-                    }
-                }
-            });
-        });
-    @endif
-
-    // Gráfico de Evolução com otimizações e decimação
-    createChartWhenVisible('evolucaoChart', function() {
-        const evolucaoCtx = document.getElementById('evolucaoChart').getContext('2d', { 
-            willReadFrequently: false,
-            alpha: false 
-        });
-        
-        return new Chart(evolucaoCtx, {
-            type: 'line',
+    @if($comparar)
+        // Gráfico de Comparação
+        const ctxComparacao = document.getElementById('graficoComparacao').getContext('2d');
+        new Chart(ctxComparacao, {
+            type: 'bar',
             data: {
-                labels: {!! json_encode(collect($evolucaoMensal)->map(function($item) { return $item['mes'] . '/' . $item['ano']; })) !!},
-                datasets: [{
-                    label: 'Receitas',
-                    data: {!! json_encode(collect($evolucaoMensal)->pluck('receitas')) !!},
-                    borderColor: 'rgb(34, 197, 94)',
-                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                    tension: 0,
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 4,
-                    fill: false
-                }, {
-                    label: 'Despesas',
-                    data: {!! json_encode(collect($evolucaoMensal)->pluck('despesas')) !!},
-                    borderColor: 'rgb(239, 68, 68)',
-                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                    tension: 0,
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 4,
-                    fill: false
-                }, {
-                    label: 'Lucro',
-                    data: {!! json_encode(collect($evolucaoMensal)->pluck('lucro')) !!},
-                    borderColor: 'rgb(59, 130, 246)',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    tension: 0,
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 4,
-                    fill: false
-                }]
+                labels: {!! json_encode(collect($dadosComparacao['comparacao'])->pluck('unidade.nome')) !!},
+                datasets: [
+                    {
+                        label: 'Receitas',
+                        data: {!! json_encode(collect($dadosComparacao['comparacao'])->pluck('receitas')) !!},
+                        backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                        borderColor: 'rgb(34, 197, 94)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Despesas',
+                        data: {!! json_encode(collect($dadosComparacao['comparacao'])->pluck('despesas')) !!},
+                        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                        borderColor: 'rgb(239, 68, 68)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Lucro',
+                        data: {!! json_encode(collect($dadosComparacao['comparacao'])->pluck('lucro')) !!},
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        borderWidth: 1
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: false,
-                interaction: {
-                    mode: 'nearest',
-                    axis: 'x',
-                    intersect: false
-                },
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            usePointStyle: true,
-                            padding: 15
-                        }
-                    },
-                    tooltip: {
-                        enabled: true,
-                        animation: false
-                    },
-                    decimation: {
-                        enabled: true,
-                        algorithm: 'lttb',
-                        samples: 50
-                    }
-                },
                 scales: {
-                    x: {
-                        ticks: {
-                            maxRotation: 0,
-                            autoSkip: true,
-                            maxTicksLimit: 8
-                        }
-                    },
                     y: {
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
                                 return 'R$ ' + value.toLocaleString('pt-BR');
-                            },
-                            maxTicksLimit: 6
+                            }
                         }
-                    }
-                },
-                elements: {
-                    line: {
-                        tension: 0
                     }
                 }
             }
         });
-    });
+    @else
+        // Gráfico Fluxo Diário
+        const ctxFluxo = document.getElementById('graficoFluxoDiario').getContext('2d');
+        new Chart(ctxFluxo, {
+            type: 'line',
+            data: {
+                labels: {!! json_encode(collect($fluxoDiario)->pluck('dia')) !!},
+                datasets: [
+                    {
+                        label: 'Receitas',
+                        data: {!! json_encode(collect($fluxoDiario)->pluck('receitas')) !!},
+                        borderColor: 'rgb(34, 197, 94)',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Despesas',
+                        data: {!! json_encode(collect($fluxoDiario)->pluck('despesas')) !!},
+                        borderColor: 'rgb(239, 68, 68)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'R$ ' + value.toLocaleString('pt-BR');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Gráfico Evolução
+        const ctxEvolucao = document.getElementById('graficoEvolucao').getContext('2d');
+        new Chart(ctxEvolucao, {
+            type: 'bar',
+            data: {
+                labels: {!! json_encode(collect($evolucao)->pluck('mes')) !!},
+                datasets: [
+                    {
+                        label: 'Receitas',
+                        data: {!! json_encode(collect($evolucao)->pluck('receitas')) !!},
+                        backgroundColor: 'rgba(34, 197, 94, 0.8)'
+                    },
+                    {
+                        label: 'Despesas',
+                        data: {!! json_encode(collect($evolucao)->pluck('despesas')) !!},
+                        backgroundColor: 'rgba(239, 68, 68, 0.8)'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'R$ ' + value.toLocaleString('pt-BR');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        @if($despesasPorCategoria->count() > 0)
+        // Gráfico Despesas por Categoria
+        const ctxDespesas = document.getElementById('graficoDespesasCategoria').getContext('2d');
+        new Chart(ctxDespesas, {
+            type: 'doughnut',
+            data: {
+                labels: {!! json_encode($despesasPorCategoria->pluck('categoria')) !!},
+                datasets: [{
+                    data: {!! json_encode($despesasPorCategoria->pluck('total')) !!},
+                    backgroundColor: {!! json_encode($despesasPorCategoria->pluck('cor')) !!}
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+        @endif
+
+        @if($receitasPorCategoria->count() > 0)
+        // Gráfico Receitas por Categoria
+        const ctxReceitas = document.getElementById('graficoReceitasCategoria').getContext('2d');
+        new Chart(ctxReceitas, {
+            type: 'doughnut',
+            data: {
+                labels: {!! json_encode($receitasPorCategoria->pluck('categoria')) !!},
+                datasets: [{
+                    data: {!! json_encode($receitasPorCategoria->pluck('total')) !!},
+                    backgroundColor: {!! json_encode($receitasPorCategoria->pluck('cor')) !!}
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+        @endif
+
+        // Mini Gauge Margem Lucro
+        const ctxGaugeMargem = document.getElementById('gaugeMargemLucro').getContext('2d');
+        new Chart(ctxGaugeMargem, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [{{ $margemLucro }}, {{ 100 - $margemLucro }}],
+                    backgroundColor: [
+                        '{{ $margemLucro >= 20 ? "#22C55E" : ($margemLucro >= 10 ? "#EAB308" : "#EF4444") }}',
+                        '#E5E7EB'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false }
+                }
+            }
+        });
+
+        // Mini Gauge Inadimplência
+        const ctxGaugeInadimplencia = document.getElementById('gaugeInadimplencia').getContext('2d');
+        new Chart(ctxGaugeInadimplencia, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [{{ $inadimplencia }}, {{ 100 - $inadimplencia }}],
+                    backgroundColor: [
+                        '{{ $inadimplencia <= 5 ? "#22C55E" : ($inadimplencia <= 10 ? "#EAB308" : "#EF4444") }}',
+                        '#E5E7EB'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false }
+                }
+            }
+        });
+    @endif
 });
 </script>
-@endsection
+@endpush
