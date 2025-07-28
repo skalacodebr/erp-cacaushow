@@ -22,7 +22,7 @@
 
     <!-- Filtros -->
     <div class="bg-white p-4 rounded-lg shadow mb-6">
-        <form method="GET" action="{{ route('admin.contas-receber.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <form method="GET" action="{{ route('admin.contas-receber.index') }}" class="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select name="status" class="w-full rounded-md border-gray-300">
@@ -51,6 +51,17 @@
                     @for($i = date('Y') - 2; $i <= date('Y') + 2; $i++)
                         <option value="{{ $i }}" {{ request('ano') == $i ? 'selected' : '' }}>{{ $i }}</option>
                     @endfor
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Unidade</label>
+                <select name="unidade_id" class="w-full rounded-md border-gray-300">
+                    <option value="">Todas</option>
+                    @foreach($unidades as $unidade)
+                        <option value="{{ $unidade->id }}" {{ request('unidade_id') == $unidade->id ? 'selected' : '' }}>
+                            {{ $unidade->nome }}
+                        </option>
+                    @endforeach
                 </select>
             </div>
             <div class="flex items-end">

@@ -17,6 +17,7 @@ class ContaPagar extends Model
         'categoria_id',
         'fornecedor_id',
         'fornecedor',
+        'unidade_id',
         'tipo',
         'parcela_atual',
         'total_parcelas',
@@ -46,6 +47,11 @@ class ContaPagar extends Model
     public function fornecedor()
     {
         return $this->belongsTo(Fornecedor::class);
+    }
+    
+    public function unidade()
+    {
+        return $this->belongsTo(Unidade::class);
     }
 
     public function scopePendentes($query)

@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\TipoCustoController;
 use App\Http\Controllers\Admin\FornecedorController;
 use App\Http\Controllers\Admin\PlanoContasController;
 use App\Http\Controllers\Admin\ClienteController;
+use App\Http\Controllers\Admin\UnidadeController;
 
 // Rota principal - redireciona para admin login
 Route::get('/', function () {
@@ -57,6 +58,10 @@ Route::prefix('admin')->name('admin.')->middleware(['web', App\Http\Middleware\A
     
     Route::resource('fornecedores', FornecedorController::class)->parameters([
         'fornecedores' => 'fornecedor'
+    ]);
+    
+    Route::resource('unidades', UnidadeController::class)->parameters([
+        'unidades' => 'unidade'
     ]);
     
     Route::resource('contas-pagar', ContaPagarController::class)->parameters([

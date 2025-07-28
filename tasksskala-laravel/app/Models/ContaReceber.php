@@ -16,6 +16,7 @@ class ContaReceber extends Model
         'conta_bancaria_id',
         'cliente_id',
         'cliente_nome',
+        'unidade_id',
         'categoria_id',
         'tipo',
         'parcela_atual',
@@ -46,6 +47,11 @@ class ContaReceber extends Model
     public function cliente()
     {
         return $this->belongsTo(Cliente::class);
+    }
+    
+    public function unidade()
+    {
+        return $this->belongsTo(Unidade::class);
     }
 
     public function scopePendentes($query)

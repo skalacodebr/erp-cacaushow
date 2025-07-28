@@ -7,6 +7,7 @@ use App\Models\ContaPagar;
 use App\Models\ContaBancaria;
 use App\Models\CategoriaFinanceira;
 use App\Models\Fornecedor;
+use App\Models\Unidade;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -34,7 +35,7 @@ class ContaPagarController extends Controller
      */
     public function index(Request $request)
     {
-        $query = ContaPagar::with(['contaBancaria', 'categoria', 'fornecedor']);
+        $query = ContaPagar::with(['contaBancaria', 'categoria', 'fornecedor', 'unidade']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -47,10 +48,16 @@ class ContaPagarController extends Controller
         if ($request->filled('ano')) {
             $query->whereYear('data_vencimento', $request->ano);
         }
+        
+        if ($request->filled('unidade_id')) {
+            $query->where('unidade_id', $request->unidade_id);
+        }
 
         $contas = $query->orderBy('data_vencimento')->paginate(10);
         
-        return view('admin.contas-pagar.index', compact('contas'));
+        $unidades = Unidade::ativas()->orderBy('nome')->get();
+        
+        return view('admin.contas-pagar.index', compact('contas', 'unidades'));
     }
 
     /**
@@ -64,7 +71,8 @@ class ContaPagarController extends Controller
             ->where('ativo', true)
             ->get();
         $fornecedores = Fornecedor::where('ativo', true)->orderBy('nome')->get();
-        return view('admin.contas-pagar.create', compact('contasBancarias', 'categorias', 'fornecedores'));
+        $unidades = Unidade::ativas()->orderBy('nome')->get();
+        return view('admin.contas-pagar.create', compact('contasBancarias', 'categorias', 'fornecedores', 'unidades'));
     }
 
     /**
@@ -83,6 +91,7 @@ class ContaPagarController extends Controller
             'periodicidade' => 'required_if:tipo,recorrente|nullable|in:semanal,mensal,bimestral,trimestral,semestral,anual',
             'data_fim_recorrencia' => 'required_if:tipo,recorrente|nullable|date|after:data_vencimento',
             'fornecedor_id' => 'nullable|exists:fornecedores,id',
+            'unidade_id' => 'nullable|exists:unidades,id',
             'observacoes' => 'nullable|string'
         ]);
 
@@ -153,7 +162,8 @@ class ContaPagarController extends Controller
             ->where('ativo', true)
             ->get();
         $fornecedores = Fornecedor::where('ativo', true)->orderBy('nome')->get();
-        return view('admin.contas-pagar.edit', compact('conta', 'contasBancarias', 'categorias', 'fornecedores'));
+        $unidades = Unidade::ativas()->orderBy('nome')->get();
+        return view('admin.contas-pagar.edit', compact('conta', 'contasBancarias', 'categorias', 'fornecedores', 'unidades'));
     }
 
     /**
@@ -172,6 +182,7 @@ class ContaPagarController extends Controller
             'categoria_id' => 'required|exists:categorias_financeiras,id',
             'status' => 'required|in:pendente,pago,vencido,cancelado',
             'fornecedor_id' => 'nullable|exists:fornecedores,id',
+            'unidade_id' => 'nullable|exists:unidades,id',
             'observacoes' => 'nullable|string'
         ]);
 

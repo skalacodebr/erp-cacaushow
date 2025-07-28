@@ -46,6 +46,25 @@
             </div>
 
             <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="unidade_id">
+                    Unidade
+                </label>
+                <select class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline @error('unidade_id') border-red-500 @enderror" 
+                        id="unidade_id" 
+                        name="unidade_id">
+                    <option value="">Selecione uma unidade...</option>
+                    @foreach($unidades as $unidade)
+                        <option value="{{ $unidade->id }}" {{ old('unidade_id') == $unidade->id ? 'selected' : '' }}>
+                            {{ $unidade->nome }} - {{ $unidade->codigo }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('unidade_id')
+                    <p class="text-red-500 text-xs italic">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2" for="valor">
                     Valor
                 </label>
