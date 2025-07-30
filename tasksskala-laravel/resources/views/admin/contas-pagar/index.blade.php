@@ -20,6 +20,12 @@
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {{ session('error') }}
+        </div>
+    @endif
+
     <!-- Filtros -->
     <div class="bg-white p-4 rounded-lg shadow mb-6">
         <form method="GET" action="{{ route('admin.contas-pagar.index') }}" class="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -127,7 +133,7 @@
                             <a href="{{ route('admin.contas-pagar.show', $conta->id) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">Ver</a>
                             <a href="{{ route('admin.contas-pagar.edit', $conta->id) }}" class="text-yellow-600 hover:text-yellow-900 mr-3">Editar</a>
                             @if($conta->status == 'pendente')
-                                <button onclick="abrirModalPagar({{ $conta->id }})" class="text-green-600 hover:text-green-900 mr-3">Pagar</button>
+                                <button onclick="abrirModalPagar({{ $conta->id }}, '{{ number_format($conta->valor, 2, ',', '.') }}')" class="text-green-600 hover:text-green-900 mr-3">Pagar</button>
                             @endif
                             <form action="{{ route('admin.contas-pagar.destroy', $conta->id) }}" method="POST" class="inline">
                                 @csrf
@@ -150,7 +156,7 @@
     </div>
 
     <div class="mt-4">
-        {{ $contas->links() }}
+        {{ $contas->appends(request()->query())->links() }}
     </div>
 </div>
 
@@ -167,6 +173,9 @@
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                     <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Confirmar Pagamento</h3>
                     <div class="mb-4">
+                        <p class="text-sm text-gray-600">Valor a pagar: <span id="valorConta" class="font-bold text-lg"></span></p>
+                    </div>
+                    <div class="mb-4">
                         <label class="block text-gray-700 text-sm font-bold mb-2">Data do Pagamento</label>
                         <input type="date" name="data_pagamento" required class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" value="{{ date('Y-m-d') }}">
                     </div>
@@ -175,7 +184,9 @@
                         <select name="conta_bancaria_id" required class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                             <option value="">Selecione uma conta</option>
                             @foreach(\App\Models\ContaBancaria::where('ativo', true)->get() as $contaBancaria)
-                                <option value="{{ $contaBancaria->id }}">{{ $contaBancaria->nome }} - {{ $contaBancaria->banco }}</option>
+                                <option value="{{ $contaBancaria->id }}">
+                                    {{ $contaBancaria->nome }} - {{ $contaBancaria->banco }} (Saldo: R$ {{ number_format($contaBancaria->saldo, 2, ',', '.') }})
+                                </option>
                             @endforeach
                         </select>
                     </div>
@@ -194,8 +205,9 @@
 </div>
 
 <script>
-function abrirModalPagar(contaId) {
+function abrirModalPagar(contaId, valor) {
     document.getElementById('formPagar').action = `/admin/contas-pagar/${contaId}/pagar`;
+    document.getElementById('valorConta').textContent = `R$ ${valor}`;
     document.getElementById('modalPagar').classList.remove('hidden');
 }
 

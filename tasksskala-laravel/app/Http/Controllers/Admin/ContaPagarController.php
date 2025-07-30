@@ -22,13 +22,25 @@ class ContaPagarController extends Controller
             'conta_bancaria_id' => 'required|exists:contas_bancarias,id'
         ]);
         
+        // Buscar a conta bancária
+        $contaBancaria = ContaBancaria::findOrFail($validated['conta_bancaria_id']);
+        
+        // Verificar se há saldo suficiente
+        if ($contaBancaria->saldo < $conta->valor) {
+            return redirect()->back()->with('error', 'Saldo insuficiente na conta bancária selecionada.');
+        }
+        
+        // Atualizar o status da conta para pago
         $conta->update([
             'status' => 'pago',
             'data_pagamento' => $validated['data_pagamento'],
             'conta_bancaria_id' => $validated['conta_bancaria_id']
         ]);
         
-        return redirect()->back()->with('success', 'Conta paga com sucesso!');
+        // Diminuir o saldo da conta bancária
+        $contaBancaria->decrement('saldo', $conta->valor);
+        
+        return redirect()->back()->with('success', 'Conta paga com sucesso! Saldo da conta bancária atualizado.');
     }
     /**
      * Display a listing of the resource.
