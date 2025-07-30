@@ -319,6 +319,38 @@
                     <p class="text-gray-500">Nenhuma receita registrada no período.</p>
                 @endif
             </div>
+            
+            <!-- Top Despesas por Tipo de Custo -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4">Top 5 Despesas por Tipo de Custo</h2>
+                @if($despesasPorTipoCusto->count() > 0)
+                    <div class="space-y-3">
+                        @foreach($despesasPorTipoCusto as $index => $tipo)
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center">
+                                <div class="w-8 h-8 rounded-full mr-3 flex items-center justify-center text-white font-bold"
+                                     style="background-color: {{ ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#6366F1'][$index] ?? '#6B7280' }}">
+                                    {{ $index + 1 }}
+                                </div>
+                                <span class="text-sm font-medium">{{ $tipo->tipo_custo }}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="font-semibold">R$ {{ number_format($tipo->total, 2, ',', '.') }}</span>
+                                <span class="text-xs text-gray-500 ml-2">({{ $tipo->quantidade }} {{ $tipo->quantidade == 1 ? 'lançamento' : 'lançamentos' }})</span>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 ml-11 mb-3">
+                            <div class="h-2 rounded-full" 
+                                 style="width: {{ $despesasPorTipoCusto->max('total') > 0 ? ($tipo->total / $despesasPorTipoCusto->max('total') * 100) : 0 }}%; 
+                                        background-color: {{ ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#6366F1'][$index] ?? '#6B7280' }}">
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-gray-500">Nenhuma despesa por tipo de custo encontrada</p>
+                @endif
+            </div>
         </div>
 
         <!-- Próximos Vencimentos -->

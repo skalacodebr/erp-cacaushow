@@ -7,6 +7,7 @@ use App\Models\ContaPagar;
 use App\Models\ContaReceber;
 use App\Models\ContaBancaria;
 use App\Models\CategoriaFinanceira;
+use App\Models\TipoCusto;
 use App\Models\Unidade;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -150,6 +151,25 @@ class DashboardFinanceiraController extends Controller
             ->orderBy('total', 'desc')
             ->limit(5)
             ->get();
+            
+        // Top 5 despesas por tipo de custo
+        $despesasPorTipoCusto = DB::table('contas_pagar')
+            ->join('categorias_financeiras', 'contas_pagar.categoria_id', '=', 'categorias_financeiras.id')
+            ->join('tipos_custo', 'categorias_financeiras.tipo_custo_id', '=', 'tipos_custo.id')
+            ->whereMonth('contas_pagar.data_vencimento', $mes)
+            ->whereYear('contas_pagar.data_vencimento', $ano)
+            ->when($unidadeId, function($query) use ($unidadeId) {
+                return $query->where('contas_pagar.unidade_id', $unidadeId);
+            })
+            ->groupBy('tipos_custo.id', 'tipos_custo.nome')
+            ->select(
+                'tipos_custo.nome as tipo_custo',
+                DB::raw('SUM(contas_pagar.valor) as total'),
+                DB::raw('COUNT(DISTINCT contas_pagar.id) as quantidade')
+            )
+            ->orderBy('total', 'desc')
+            ->limit(5)
+            ->get();
         
         // Evolução últimos 6 meses
         $evolucao = [];
@@ -212,6 +232,7 @@ class DashboardFinanceiraController extends Controller
             'fluxoDiario',
             'despesasPorCategoria',
             'receitasPorCategoria',
+            'despesasPorTipoCusto',
             'evolucao',
             'proximasReceitas',
             'proximasDespesas',
