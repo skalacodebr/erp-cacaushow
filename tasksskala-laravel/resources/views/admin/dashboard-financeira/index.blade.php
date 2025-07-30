@@ -326,7 +326,8 @@
                 @if($despesasPorTipoCusto->count() > 0)
                     <div class="space-y-3">
                         @foreach($despesasPorTipoCusto as $index => $tipo)
-                        <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center justify-between mb-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+                             onclick="abrirModalTipoCusto('{{ $tipo->tipo_custo }}', {{ $mesAtual }}, {{ $anoAtual }}, {{ $unidadeId ?? 'null' }})">
                             <div class="flex items-center">
                                 <div class="w-8 h-8 rounded-full mr-3 flex items-center justify-center text-white font-bold"
                                      style="background-color: {{ ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#6366F1'][$index] ?? '#6B7280' }}">
@@ -637,5 +638,81 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     @endif
 });
+
+// Função para abrir modal com lançamentos do tipo de custo
+function abrirModalTipoCusto(tipoCusto, mes, ano, unidadeId) {
+    document.getElementById('modalTipoCustoTitulo').textContent = 'Lançamentos - ' + tipoCusto;
+    document.getElementById('modalTipoCustoCorpo').innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i><p class="mt-2 text-gray-500">Carregando...</p></div>';
+    document.getElementById('modalTipoCusto').classList.remove('hidden');
+    
+    // Fazer requisição AJAX
+    fetch(`/admin/dashboard-financeira/lancamentos-tipo-custo?tipo_custo=${encodeURIComponent(tipoCusto)}&mes=${mes}&ano=${ano}&unidade_id=${unidadeId}`)
+        .then(response => response.json())
+        .then(data => {
+            let html = '';
+            if (data.length > 0) {
+                html = '<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200">';
+                html += '<thead class="bg-gray-50"><tr>';
+                html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>';
+                html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>';
+                html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoria</th>';
+                html += '<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor</th>';
+                html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>';
+                html += '</tr></thead><tbody class="bg-white divide-y divide-gray-200">';
+                
+                data.forEach(lancamento => {
+                    const statusColor = lancamento.status === 'pago' ? 'text-green-600' : 
+                                       lancamento.status === 'pendente' ? 'text-yellow-600' : 'text-red-600';
+                    html += `<tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">${lancamento.data_vencimento}</td>
+                        <td class="px-6 py-4 text-sm">${lancamento.descricao}</td>
+                        <td class="px-6 py-4 text-sm">${lancamento.categoria || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">R$ ${lancamento.valor}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm ${statusColor}">${lancamento.status}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+            } else {
+                html = '<p class="text-center text-gray-500 py-4">Nenhum lançamento encontrado para este tipo de custo.</p>';
+            }
+            document.getElementById('modalTipoCustoCorpo').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            document.getElementById('modalTipoCustoCorpo').innerHTML = '<p class="text-center text-red-500 py-4">Erro ao carregar os dados.</p>';
+        });
+}
+
+function fecharModalTipoCusto() {
+    document.getElementById('modalTipoCusto').classList.add('hidden');
+}
 </script>
+
+<!-- Modal Lançamentos por Tipo de Custo -->
+<div id="modalTipoCusto" class="fixed z-50 inset-0 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 id="modalTipoCustoTitulo" class="text-lg leading-6 font-medium text-gray-900">Lançamentos</h3>
+                    <button onclick="fecharModalTipoCusto()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div id="modalTipoCustoCorpo">
+                    <!-- Conteúdo carregado via AJAX -->
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" onclick="fecharModalTipoCusto()" class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 @endpush

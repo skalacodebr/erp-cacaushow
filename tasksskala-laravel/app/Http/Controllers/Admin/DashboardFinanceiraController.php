@@ -296,4 +296,43 @@ class DashboardFinanceiraController extends Controller
             'totais' => $totais
         ];
     }
+    
+    public function lancamentosTipoCusto(Request $request)
+    {
+        $tipoCusto = $request->get('tipo_custo');
+        $mes = $request->get('mes');
+        $ano = $request->get('ano');
+        $unidadeId = $request->get('unidade_id');
+        
+        $query = ContaPagar::with(['categoria'])
+            ->join('categorias_financeiras', 'contas_pagar.categoria_id', '=', 'categorias_financeiras.id')
+            ->join('tipos_custo', 'categorias_financeiras.tipo_custo_id', '=', 'tipos_custo.id')
+            ->where('tipos_custo.nome', $tipoCusto)
+            ->whereMonth('contas_pagar.data_vencimento', $mes)
+            ->whereYear('contas_pagar.data_vencimento', $ano);
+            
+        if ($unidadeId && $unidadeId !== 'null') {
+            $query->where('contas_pagar.unidade_id', $unidadeId);
+        }
+        
+        $lancamentos = $query->select(
+                'contas_pagar.*',
+                'categorias_financeiras.nome as categoria_nome'
+            )
+            ->orderBy('contas_pagar.data_vencimento', 'desc')
+            ->get()
+            ->map(function($lancamento) {
+                return [
+                    'id' => $lancamento->id,
+                    'descricao' => $lancamento->descricao,
+                    'valor' => number_format($lancamento->valor, 2, ',', '.'),
+                    'data_vencimento' => $lancamento->data_vencimento->format('d/m/Y'),
+                    'categoria' => $lancamento->categoria_nome,
+                    'status' => ucfirst($lancamento->status),
+                    'fornecedor' => $lancamento->fornecedor ?? '-'
+                ];
+            });
+            
+        return response()->json($lancamentos);
+    }
 }
