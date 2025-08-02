@@ -330,7 +330,7 @@
                              onclick="abrirModalTipoCusto('{{ $tipo->tipo_custo }}', {{ $mesAtual }}, {{ $anoAtual }}, {{ $unidadeId ?? 'null' }})">
                             <div class="flex items-center">
                                 <div class="w-8 h-8 rounded-full mr-3 flex items-center justify-center text-white font-bold"
-                                     style="background-color: {{ ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#6366F1'][$index] ?? '#6B7280' }}">
+                                     style="background-color: {{ ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#6366F1', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#06B6D4'][$index] ?? '#6B7280' }}">
                                     {{ $index + 1 }}
                                 </div>
                                 <span class="text-sm font-medium">{{ $tipo->tipo_custo }}</span>
@@ -343,7 +343,7 @@
                         <div class="w-full bg-gray-200 rounded-full h-2 ml-11 mb-3">
                             <div class="h-2 rounded-full" 
                                  style="width: {{ $despesasPorTipoCusto->max('total') > 0 ? ($tipo->total / $despesasPorTipoCusto->max('total') * 100) : 0 }}%; 
-                                        background-color: {{ ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#6366F1'][$index] ?? '#6B7280' }}">
+                                        background-color: {{ ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#6366F1', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#06B6D4'][$index] ?? '#6B7280' }}">
                             </div>
                         </div>
                         @endforeach
@@ -639,14 +639,60 @@ document.addEventListener('DOMContentLoaded', function() {
     @endif
 });
 
-// Função para abrir modal com lançamentos do tipo de custo
+// Função para abrir modal com categorias do tipo de custo
 function abrirModalTipoCusto(tipoCusto, mes, ano, unidadeId) {
-    document.getElementById('modalTipoCustoTitulo').textContent = 'Lançamentos - ' + tipoCusto;
+    document.getElementById('modalTipoCustoTitulo').textContent = 'Categorias - ' + tipoCusto;
     document.getElementById('modalTipoCustoCorpo').innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i><p class="mt-2 text-gray-500">Carregando...</p></div>';
     document.getElementById('modalTipoCusto').classList.remove('hidden');
     
-    // Fazer requisição AJAX
-    fetch(`/admin/dashboard-financeira/lancamentos-tipo-custo?tipo_custo=${encodeURIComponent(tipoCusto)}&mes=${mes}&ano=${ano}&unidade_id=${unidadeId}`)
+    // Fazer requisição AJAX para buscar categorias
+    fetch(`/admin/dashboard-financeira/categorias-por-tipo-custo?tipo_custo=${encodeURIComponent(tipoCusto)}&mes=${mes}&ano=${ano}&unidade_id=${unidadeId}`)
+        .then(response => response.json())
+        .then(data => {
+            let html = '';
+            if (data.length > 0) {
+                html = '<div class="space-y-3">';
+                data.forEach((categoria, index) => {
+                    const cor = categoria.cor || ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#6366F1', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#06B6D4'][index % 10];
+                    html += `
+                        <div class="flex items-center justify-between mb-2 cursor-pointer hover:bg-gray-50 p-3 rounded transition-colors border border-gray-200"
+                             onclick="abrirModalLancamentosCategoria(${categoria.categoria_id}, '${categoria.categoria_nome}', ${mes}, ${ano}, ${unidadeId})">
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 rounded-full mr-3" style="background-color: ${cor}"></div>
+                                <span class="text-sm font-medium">${categoria.categoria_nome}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="font-semibold">R$ ${parseFloat(categoria.total).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                <span class="text-xs text-gray-500 ml-2">(${categoria.quantidade} ${categoria.quantidade == 1 ? 'lançamento' : 'lançamentos'})</span>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 ml-6 mb-3">
+                            <div class="h-2 rounded-full" 
+                                 style="width: ${data[0].total > 0 ? (categoria.total / data[0].total * 100) : 0}%; 
+                                        background-color: ${cor}">
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            } else {
+                html = '<p class="text-center text-gray-500 py-4">Nenhuma categoria encontrada para este tipo de custo.</p>';
+            }
+            document.getElementById('modalTipoCustoCorpo').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            document.getElementById('modalTipoCustoCorpo').innerHTML = '<p class="text-center text-red-500 py-4">Erro ao carregar os dados.</p>';
+        });
+}
+
+// Função para abrir modal com lançamentos da categoria
+function abrirModalLancamentosCategoria(categoriaId, categoriaNome, mes, ano, unidadeId) {
+    document.getElementById('modalTipoCustoTitulo').textContent = 'Lançamentos - ' + categoriaNome;
+    document.getElementById('modalTipoCustoCorpo').innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i><p class="mt-2 text-gray-500">Carregando...</p></div>';
+    
+    // Fazer requisição AJAX para buscar lançamentos da categoria
+    fetch(`/admin/dashboard-financeira/lancamentos-por-categoria?categoria_id=${categoriaId}&mes=${mes}&ano=${ano}&unidade_id=${unidadeId}`)
         .then(response => response.json())
         .then(data => {
             let html = '';
@@ -655,25 +701,33 @@ function abrirModalTipoCusto(tipoCusto, mes, ano, unidadeId) {
                 html += '<thead class="bg-gray-50"><tr>';
                 html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>';
                 html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>';
-                html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoria</th>';
                 html += '<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor</th>';
                 html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>';
                 html += '</tr></thead><tbody class="bg-white divide-y divide-gray-200">';
                 
                 data.forEach(lancamento => {
-                    const statusColor = lancamento.status === 'pago' ? 'text-green-600' : 
-                                       lancamento.status === 'pendente' ? 'text-yellow-600' : 'text-red-600';
+                    const statusColor = lancamento.status === 'Pago' ? 'text-green-600' : 
+                                       lancamento.status === 'Pendente' ? 'text-yellow-600' : 'text-red-600';
                     html += `<tr>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">${lancamento.data_vencimento}</td>
                         <td class="px-6 py-4 text-sm">${lancamento.descricao}</td>
-                        <td class="px-6 py-4 text-sm">${lancamento.categoria || '-'}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">R$ ${lancamento.valor}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm ${statusColor}">${lancamento.status}</td>
                     </tr>`;
                 });
                 html += '</tbody></table></div>';
+                
+                // Adicionar botão para voltar às categorias
+                html += `
+                    <div class="mt-4 pt-4 border-t">
+                        <button onclick="abrirModalTipoCusto('${document.getElementById('modalTipoCustoTitulo').textContent.replace('Lançamentos - ', '').replace('Categorias - ', '')}', ${mes}, ${ano}, ${unidadeId})" 
+                                class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            <i class="fas fa-arrow-left mr-2"></i>Voltar para categorias
+                        </button>
+                    </div>
+                `;
             } else {
-                html = '<p class="text-center text-gray-500 py-4">Nenhum lançamento encontrado para este tipo de custo.</p>';
+                html = '<p class="text-center text-gray-500 py-4">Nenhum lançamento encontrado para esta categoria.</p>';
             }
             document.getElementById('modalTipoCustoCorpo').innerHTML = html;
         })
