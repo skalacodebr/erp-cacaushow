@@ -152,7 +152,7 @@ class DashboardFinanceiraController extends Controller
             ->limit(5)
             ->get();
             
-        // Top 5 despesas por tipo de custo
+        // Top 10 despesas por tipo de custo
         $despesasPorTipoCusto = DB::table('contas_pagar')
             ->join('categorias_financeiras', 'contas_pagar.categoria_id', '=', 'categorias_financeiras.id')
             ->join('tipos_custo', 'categorias_financeiras.tipo_custo_id', '=', 'tipos_custo.id')
@@ -168,7 +168,7 @@ class DashboardFinanceiraController extends Controller
                 DB::raw('COUNT(DISTINCT contas_pagar.id) as quantidade')
             )
             ->orderBy('total', 'desc')
-            ->limit(5)
+            ->limit(10)
             ->get();
         
         // Evolução últimos 6 meses
@@ -295,6 +295,69 @@ class DashboardFinanceiraController extends Controller
             'comparacao' => $comparacao,
             'totais' => $totais
         ];
+    }
+    
+    public function categoriasPorTipoCusto(Request $request)
+    {
+        $tipoCusto = $request->get('tipo_custo');
+        $mes = $request->get('mes');
+        $ano = $request->get('ano');
+        $unidadeId = $request->get('unidade_id');
+        
+        $categorias = DB::table('contas_pagar')
+            ->join('categorias_financeiras', 'contas_pagar.categoria_id', '=', 'categorias_financeiras.id')
+            ->join('tipos_custo', 'categorias_financeiras.tipo_custo_id', '=', 'tipos_custo.id')
+            ->where('tipos_custo.nome', $tipoCusto)
+            ->whereMonth('contas_pagar.data_vencimento', $mes)
+            ->whereYear('contas_pagar.data_vencimento', $ano)
+            ->when($unidadeId && $unidadeId !== 'null', function($query) use ($unidadeId) {
+                return $query->where('contas_pagar.unidade_id', $unidadeId);
+            })
+            ->groupBy('categorias_financeiras.id', 'categorias_financeiras.nome', 'categorias_financeiras.cor')
+            ->select(
+                'categorias_financeiras.id as categoria_id',
+                'categorias_financeiras.nome as categoria_nome',
+                'categorias_financeiras.cor',
+                DB::raw('SUM(contas_pagar.valor) as total'),
+                DB::raw('COUNT(*) as quantidade')
+            )
+            ->orderBy('total', 'desc')
+            ->get();
+            
+        return response()->json($categorias);
+    }
+    
+    public function lancamentosPorCategoria(Request $request)
+    {
+        $categoriaId = $request->get('categoria_id');
+        $mes = $request->get('mes');
+        $ano = $request->get('ano');
+        $unidadeId = $request->get('unidade_id');
+        
+        $query = ContaPagar::with(['categoria'])
+            ->where('categoria_id', $categoriaId)
+            ->whereMonth('data_vencimento', $mes)
+            ->whereYear('data_vencimento', $ano);
+            
+        if ($unidadeId && $unidadeId !== 'null') {
+            $query->where('unidade_id', $unidadeId);
+        }
+        
+        $lancamentos = $query
+            ->orderBy('data_vencimento', 'desc')
+            ->get()
+            ->map(function($lancamento) {
+                return [
+                    'id' => $lancamento->id,
+                    'descricao' => $lancamento->descricao,
+                    'valor' => number_format($lancamento->valor, 2, ',', '.'),
+                    'data_vencimento' => $lancamento->data_vencimento->format('d/m/Y'),
+                    'status' => ucfirst($lancamento->status),
+                    'fornecedor' => $lancamento->fornecedor ?? '-'
+                ];
+            });
+            
+        return response()->json($lancamentos);
     }
     
     public function lancamentosTipoCusto(Request $request)

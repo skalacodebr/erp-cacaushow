@@ -184,6 +184,7 @@ class ContaPagarController extends Controller
     public function update(Request $request, string $id)
     {
         $conta = ContaPagar::findOrFail($id);
+        $statusAnterior = $conta->status;
 
         $validated = $request->validate([
             'descricao' => 'required|string|max:255',
@@ -198,10 +199,38 @@ class ContaPagarController extends Controller
             'observacoes' => 'nullable|string'
         ]);
 
+        // Verificar se o status mudou para "pago" e se há conta bancária vinculada
+        if ($statusAnterior !== 'pago' && $validated['status'] === 'pago' && $validated['conta_bancaria_id']) {
+            $contaBancaria = ContaBancaria::findOrFail($validated['conta_bancaria_id']);
+            
+            // Verificar se há saldo suficiente
+            if ($contaBancaria->saldo < $validated['valor']) {
+                return redirect()->back()->with('error', 'Saldo insuficiente na conta bancária selecionada.');
+            }
+            
+            // Diminuir o saldo da conta bancária
+            $contaBancaria->decrement('saldo', $validated['valor']);
+        }
+        
+        // Verificar se o status mudou de "pago" para outro status (estorno)
+        if ($statusAnterior === 'pago' && $validated['status'] !== 'pago' && $conta->conta_bancaria_id) {
+            $contaBancaria = ContaBancaria::findOrFail($conta->conta_bancaria_id);
+            
+            // Devolver o valor para a conta bancária
+            $contaBancaria->increment('saldo', $conta->valor);
+        }
+
         $conta->update($validated);
 
+        $mensagem = 'Conta a pagar atualizada com sucesso!';
+        if ($statusAnterior !== 'pago' && $validated['status'] === 'pago') {
+            $mensagem .= ' Saldo da conta bancária foi atualizado.';
+        } elseif ($statusAnterior === 'pago' && $validated['status'] !== 'pago') {
+            $mensagem .= ' Valor foi devolvido para a conta bancária.';
+        }
+
         return redirect()->route('admin.contas-pagar.index')
-                        ->with('success', 'Conta a pagar atualizada com sucesso!');
+                        ->with('success', $mensagem);
     }
 
     /**

@@ -22,13 +22,20 @@ class ContaReceberController extends Controller
             'conta_bancaria_id' => 'required|exists:contas_bancarias,id'
         ]);
         
+        // Buscar a conta bancária
+        $contaBancaria = ContaBancaria::findOrFail($validated['conta_bancaria_id']);
+        
+        // Atualizar o status da conta para recebido
         $conta->update([
             'status' => 'recebido',
             'data_recebimento' => $validated['data_recebimento'],
             'conta_bancaria_id' => $validated['conta_bancaria_id']
         ]);
         
-        return redirect()->back()->with('success', 'Conta recebida com sucesso!');
+        // Aumentar o saldo da conta bancária
+        $contaBancaria->increment('saldo', $conta->valor);
+        
+        return redirect()->back()->with('success', 'Conta recebida com sucesso! Saldo da conta bancária atualizado.');
     }
     /**
      * Display a listing of the resource.
@@ -167,6 +174,7 @@ class ContaReceberController extends Controller
     public function update(Request $request, string $id)
     {
         $conta = ContaReceber::findOrFail($id);
+        $statusAnterior = $conta->status;
 
         $validated = $request->validate([
             'descricao' => 'required|string|max:255',
@@ -182,10 +190,38 @@ class ContaReceberController extends Controller
             'observacoes' => 'nullable|string'
         ]);
 
+        // Verificar se o status mudou para "recebido" e se há conta bancária vinculada
+        if ($statusAnterior !== 'recebido' && $validated['status'] === 'recebido' && $validated['conta_bancaria_id']) {
+            $contaBancaria = ContaBancaria::findOrFail($validated['conta_bancaria_id']);
+            
+            // Aumentar o saldo da conta bancária
+            $contaBancaria->increment('saldo', $validated['valor']);
+        }
+        
+        // Verificar se o status mudou de "recebido" para outro status (estorno)
+        if ($statusAnterior === 'recebido' && $validated['status'] !== 'recebido' && $conta->conta_bancaria_id) {
+            $contaBancaria = ContaBancaria::findOrFail($conta->conta_bancaria_id);
+            
+            // Verificar se há saldo suficiente para o estorno
+            if ($contaBancaria->saldo < $conta->valor) {
+                return redirect()->back()->with('error', 'Saldo insuficiente na conta bancária para realizar o estorno.');
+            }
+            
+            // Subtrair o valor da conta bancária
+            $contaBancaria->decrement('saldo', $conta->valor);
+        }
+
         $conta->update($validated);
 
+        $mensagem = 'Conta a receber atualizada com sucesso!';
+        if ($statusAnterior !== 'recebido' && $validated['status'] === 'recebido') {
+            $mensagem .= ' Saldo da conta bancária foi atualizado.';
+        } elseif ($statusAnterior === 'recebido' && $validated['status'] !== 'recebido') {
+            $mensagem .= ' Valor foi estornado da conta bancária.';
+        }
+
         return redirect()->route('admin.contas-receber.index')
-                        ->with('success', 'Conta a receber atualizada com sucesso!');
+                        ->with('success', $mensagem);
     }
 
     /**

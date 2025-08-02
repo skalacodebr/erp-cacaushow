@@ -18,8 +18,8 @@ class FluxoCaixaController extends Controller
         ContaReceber::atualizarContasVencidas();
 
         // Filtros
-        $mesAtual = $request->get('mes', Carbon::now()->month);
-        $anoAtual = $request->get('ano', Carbon::now()->year);
+        $mesAtual = (int) $request->get('mes', Carbon::now()->month);
+        $anoAtual = (int) $request->get('ano', Carbon::now()->year);
         
         // Contas bancárias
         $contasBancarias = ContaBancaria::where('ativo', true)->get();

@@ -35,6 +35,8 @@ Route::prefix('admin')->name('admin.')->middleware(['web', App\Http\Middleware\A
     // Rotas do Sistema Financeiro
     Route::get('dashboard-financeira', [DashboardFinanceiraController::class, 'index'])->name('dashboard-financeira.index');
     Route::get('dashboard-financeira/lancamentos-tipo-custo', [DashboardFinanceiraController::class, 'lancamentosTipoCusto'])->name('dashboard-financeira.lancamentos-tipo-custo');
+    Route::get('dashboard-financeira/categorias-por-tipo-custo', [DashboardFinanceiraController::class, 'categoriasPorTipoCusto'])->name('dashboard-financeira.categorias-por-tipo-custo');
+    Route::get('dashboard-financeira/lancamentos-por-categoria', [DashboardFinanceiraController::class, 'lancamentosPorCategoria'])->name('dashboard-financeira.lancamentos-por-categoria');
     Route::get('fluxo-caixa', [FluxoCaixaController::class, 'index'])->name('fluxo-caixa.index');
     
     Route::resource('plano-contas', PlanoContasController::class)->parameters([

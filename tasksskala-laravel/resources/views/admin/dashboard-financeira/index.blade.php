@@ -322,7 +322,7 @@
             
             <!-- Top Despesas por Tipo de Custo -->
             <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-bold mb-4">Top 5 Despesas por Tipo de Custo</h2>
+                <h2 class="text-xl font-bold mb-4">Top 10 Despesas por Tipo de Custo</h2>
                 @if($despesasPorTipoCusto->count() > 0)
                     <div class="space-y-3">
                         @foreach($despesasPorTipoCusto as $index => $tipo)
