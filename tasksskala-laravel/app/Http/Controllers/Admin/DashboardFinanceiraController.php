@@ -133,7 +133,7 @@ class DashboardFinanceiraController extends Controller
             ->limit(5)
             ->get();
             
-        // Top 5 receitas por categoria
+        // Top 10 receitas por categoria
         $receitasPorCategoria = DB::table('contas_receber')
             ->join('categorias_financeiras', 'contas_receber.categoria_id', '=', 'categorias_financeiras.id')
             ->whereMonth('contas_receber.data_vencimento', $mes)
@@ -143,13 +143,14 @@ class DashboardFinanceiraController extends Controller
             })
             ->groupBy('categorias_financeiras.id', 'categorias_financeiras.nome', 'categorias_financeiras.cor')
             ->select(
+                'categorias_financeiras.id as categoria_id',
                 'categorias_financeiras.nome as categoria',
                 'categorias_financeiras.cor',
                 DB::raw('SUM(contas_receber.valor) as total'),
                 DB::raw('COUNT(*) as quantidade')
             )
             ->orderBy('total', 'desc')
-            ->limit(5)
+            ->limit(10)
             ->get();
             
         // Top 10 despesas por tipo de custo
@@ -354,6 +355,39 @@ class DashboardFinanceiraController extends Controller
                     'data_vencimento' => $lancamento->data_vencimento->format('d/m/Y'),
                     'status' => ucfirst($lancamento->status),
                     'fornecedor' => $lancamento->fornecedor ?? '-'
+                ];
+            });
+            
+        return response()->json($lancamentos);
+    }
+    
+    public function receitasPorCategoria(Request $request)
+    {
+        $categoriaId = $request->get('categoria_id');
+        $mes = $request->get('mes');
+        $ano = $request->get('ano');
+        $unidadeId = $request->get('unidade_id');
+        
+        $query = ContaReceber::with(['categoria', 'cliente'])
+            ->where('categoria_id', $categoriaId)
+            ->whereMonth('data_vencimento', $mes)
+            ->whereYear('data_vencimento', $ano);
+            
+        if ($unidadeId && $unidadeId !== 'null') {
+            $query->where('unidade_id', $unidadeId);
+        }
+        
+        $lancamentos = $query
+            ->orderBy('data_vencimento', 'desc')
+            ->get()
+            ->map(function($lancamento) {
+                return [
+                    'id' => $lancamento->id,
+                    'descricao' => $lancamento->descricao,
+                    'valor' => number_format($lancamento->valor, 2, ',', '.'),
+                    'data_vencimento' => $lancamento->data_vencimento->format('d/m/Y'),
+                    'status' => ucfirst($lancamento->status),
+                    'cliente' => $lancamento->cliente->nome ?? $lancamento->cliente_nome ?? '-'
                 ];
             });
             

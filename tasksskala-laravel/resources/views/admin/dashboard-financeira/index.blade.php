@@ -296,18 +296,19 @@
 
             <!-- Top Receitas -->
             <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-bold mb-4">Top 5 Receitas por Categoria</h2>
+                <h2 class="text-xl font-bold mb-4">Top 10 Receitas por Categoria</h2>
                 @if($receitasPorCategoria->count() > 0)
                     <div class="space-y-3">
                         @foreach($receitasPorCategoria as $categoria)
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center justify-between mb-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+                             onclick="abrirModalReceita({{ $categoria->categoria_id }}, '{{ $categoria->categoria }}', {{ $mesAtual }}, {{ $anoAtual }}, {{ $unidadeId ?? 'null' }})">
                             <div class="flex items-center">
                                 <div class="w-4 h-4 rounded-full mr-3" style="background-color: {{ $categoria->cor ?? '#10B981' }}"></div>
-                                <span class="text-sm">{{ $categoria->categoria }}</span>
+                                <span class="text-sm font-medium">{{ $categoria->categoria }}</span>
                             </div>
                             <div class="text-right">
                                 <span class="font-semibold">R$ {{ number_format($categoria->total, 2, ',', '.') }}</span>
-                                <span class="text-xs text-gray-500 ml-2">({{ $categoria->quantidade }})</span>
+                                <span class="text-xs text-gray-500 ml-2">({{ $categoria->quantidade }} {{ $categoria->quantidade == 1 ? 'lançamento' : 'lançamentos' }})</span>
                             </div>
                         </div>
                         @endforeach
@@ -740,6 +741,54 @@ function abrirModalLancamentosCategoria(categoriaId, categoriaNome, mes, ano, un
 function fecharModalTipoCusto() {
     document.getElementById('modalTipoCusto').classList.add('hidden');
 }
+
+// Função para abrir modal com receitas por categoria
+function abrirModalReceita(categoriaId, categoriaNome, mes, ano, unidadeId) {
+    document.getElementById('modalReceitaTitulo').textContent = 'Receitas - ' + categoriaNome;
+    document.getElementById('modalReceitaCorpo').innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i><p class="mt-2 text-gray-500">Carregando...</p></div>';
+    document.getElementById('modalReceita').classList.remove('hidden');
+    
+    // Fazer requisição AJAX para buscar receitas da categoria
+    fetch(`/admin/dashboard-financeira/receitas-por-categoria?categoria_id=${categoriaId}&mes=${mes}&ano=${ano}&unidade_id=${unidadeId}`)
+        .then(response => response.json())
+        .then(data => {
+            let html = '';
+            if (data.length > 0) {
+                html = '<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200">';
+                html += '<thead class="bg-gray-50"><tr>';
+                html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>';
+                html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>';
+                html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>';
+                html += '<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor</th>';
+                html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>';
+                html += '</tr></thead><tbody class="bg-white divide-y divide-gray-200">';
+                
+                data.forEach(lancamento => {
+                    const statusColor = lancamento.status === 'Recebido' ? 'text-green-600' : 
+                                       lancamento.status === 'Pendente' ? 'text-yellow-600' : 'text-red-600';
+                    html += `<tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">${lancamento.data_vencimento}</td>
+                        <td class="px-6 py-4 text-sm">${lancamento.descricao}</td>
+                        <td class="px-6 py-4 text-sm">${lancamento.cliente}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">R$ ${lancamento.valor}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm ${statusColor}">${lancamento.status}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+            } else {
+                html = '<p class="text-center text-gray-500 py-4">Nenhuma receita encontrada para esta categoria.</p>';
+            }
+            document.getElementById('modalReceitaCorpo').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            document.getElementById('modalReceitaCorpo').innerHTML = '<p class="text-center text-red-500 py-4">Erro ao carregar os dados.</p>';
+        });
+}
+
+function fecharModalReceita() {
+    document.getElementById('modalReceita').classList.add('hidden');
+}
 </script>
 
 <!-- Modal Lançamentos por Tipo de Custo -->
@@ -763,6 +812,34 @@ function fecharModalTipoCusto() {
             </div>
             <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button type="button" onclick="fecharModalTipoCusto()" class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Receitas por Categoria -->
+<div id="modalReceita" class="fixed z-50 inset-0 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 id="modalReceitaTitulo" class="text-lg leading-6 font-medium text-gray-900">Receitas</h3>
+                    <button onclick="fecharModalReceita()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div id="modalReceitaCorpo">
+                    <!-- Conteúdo carregado via AJAX -->
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" onclick="fecharModalReceita()" class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                     Fechar
                 </button>
             </div>
