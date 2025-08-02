@@ -266,61 +266,8 @@
             </div>
         </div>
 
-        <!-- Análise por Categoria -->
+        <!-- Análise por Tipo de Custo -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <!-- Top Despesas -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-bold mb-4">Top 5 Despesas por Categoria</h2>
-                @if($despesasPorCategoria->count() > 0)
-                    <div class="space-y-3">
-                        @foreach($despesasPorCategoria as $categoria)
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center">
-                                <div class="w-4 h-4 rounded-full mr-3" style="background-color: {{ $categoria->cor ?? '#6B7280' }}"></div>
-                                <span class="text-sm">{{ $categoria->categoria }}</span>
-                            </div>
-                            <div class="text-right">
-                                <span class="font-semibold">R$ {{ number_format($categoria->total, 2, ',', '.') }}</span>
-                                <span class="text-xs text-gray-500 ml-2">({{ $categoria->quantidade }})</span>
-                            </div>
-                        </div>
-                        @endforeach
-                    </div>
-                    <div style="position: relative; height: 200px;" class="mt-4">
-                        <canvas id="graficoDespesasCategoria"></canvas>
-                    </div>
-                @else
-                    <p class="text-gray-500">Nenhuma despesa registrada no período.</p>
-                @endif
-            </div>
-
-            <!-- Top Receitas -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-bold mb-4">Top 10 Receitas por Categoria</h2>
-                @if($receitasPorCategoria->count() > 0)
-                    <div class="space-y-3">
-                        @foreach($receitasPorCategoria as $categoria)
-                        <div class="flex items-center justify-between mb-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
-                             onclick="abrirModalReceita({{ $categoria->categoria_id }}, '{{ $categoria->categoria }}', {{ $mesAtual }}, {{ $anoAtual }}, {{ $unidadeId ?? 'null' }})">
-                            <div class="flex items-center">
-                                <div class="w-4 h-4 rounded-full mr-3" style="background-color: {{ $categoria->cor ?? '#10B981' }}"></div>
-                                <span class="text-sm font-medium">{{ $categoria->categoria }}</span>
-                            </div>
-                            <div class="text-right">
-                                <span class="font-semibold">R$ {{ number_format($categoria->total, 2, ',', '.') }}</span>
-                                <span class="text-xs text-gray-500 ml-2">({{ $categoria->quantidade }} {{ $categoria->quantidade == 1 ? 'lançamento' : 'lançamentos' }})</span>
-                            </div>
-                        </div>
-                        @endforeach
-                    </div>
-                    <div style="position: relative; height: 200px;" class="mt-4">
-                        <canvas id="graficoReceitasCategoria"></canvas>
-                    </div>
-                @else
-                    <p class="text-gray-500">Nenhuma receita registrada no período.</p>
-                @endif
-            </div>
-            
             <!-- Top Despesas por Tipo de Custo -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h2 class="text-xl font-bold mb-4">Top 10 Despesas por Tipo de Custo</h2>
@@ -351,6 +298,39 @@
                     </div>
                 @else
                     <p class="text-gray-500">Nenhuma despesa por tipo de custo encontrada</p>
+                @endif
+            </div>
+            
+            <!-- Top Receitas por Tipo de Custo -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4">Top 10 Receitas por Tipo de Custo</h2>
+                @if($receitasPorTipoCusto->count() > 0)
+                    <div class="space-y-3">
+                        @foreach($receitasPorTipoCusto as $index => $tipo)
+                        <div class="flex items-center justify-between mb-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+                             onclick="abrirModalReceitaTipoCusto('{{ $tipo->tipo_custo }}', {{ $mesAtual }}, {{ $anoAtual }}, {{ $unidadeId ?? 'null' }})">
+                            <div class="flex items-center">
+                                <div class="w-8 h-8 rounded-full mr-3 flex items-center justify-center text-white font-bold"
+                                     style="background-color: {{ ['#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#14B8A6', '#F97316', '#06B6D4', '#6366F1', '#84CC16'][$index] ?? '#6B7280' }}">
+                                    {{ $index + 1 }}
+                                </div>
+                                <span class="text-sm font-medium">{{ $tipo->tipo_custo }}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="font-semibold">R$ {{ number_format($tipo->total, 2, ',', '.') }}</span>
+                                <span class="text-xs text-gray-500 ml-2">({{ $tipo->quantidade }} {{ $tipo->quantidade == 1 ? 'lançamento' : 'lançamentos' }})</span>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 ml-11 mb-3">
+                            <div class="h-2 rounded-full" 
+                                 style="width: {{ $receitasPorTipoCusto->max('total') > 0 ? ($tipo->total / $receitasPorTipoCusto->max('total') * 100) : 0 }}%; 
+                                        background-color: {{ ['#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#14B8A6', '#F97316', '#06B6D4', '#6366F1', '#84CC16'][$index] ?? '#6B7280' }}">
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-gray-500">Nenhuma receita por tipo de custo encontrada</p>
                 @endif
             </div>
         </div>
@@ -540,53 +520,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        @if($despesasPorCategoria->count() > 0)
-        // Gráfico Despesas por Categoria
-        const ctxDespesas = document.getElementById('graficoDespesasCategoria').getContext('2d');
-        new Chart(ctxDespesas, {
-            type: 'doughnut',
-            data: {
-                labels: {!! json_encode($despesasPorCategoria->pluck('categoria')) !!},
-                datasets: [{
-                    data: {!! json_encode($despesasPorCategoria->pluck('total')) !!},
-                    backgroundColor: {!! json_encode($despesasPorCategoria->pluck('cor')) !!}
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-        @endif
-
-        @if($receitasPorCategoria->count() > 0)
-        // Gráfico Receitas por Categoria
-        const ctxReceitas = document.getElementById('graficoReceitasCategoria').getContext('2d');
-        new Chart(ctxReceitas, {
-            type: 'doughnut',
-            data: {
-                labels: {!! json_encode($receitasPorCategoria->pluck('categoria')) !!},
-                datasets: [{
-                    data: {!! json_encode($receitasPorCategoria->pluck('total')) !!},
-                    backgroundColor: {!! json_encode($receitasPorCategoria->pluck('cor')) !!}
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-        @endif
 
         // Mini Gauge Margem Lucro
         const ctxGaugeMargem = document.getElementById('gaugeMargemLucro').getContext('2d');
@@ -789,6 +722,110 @@ function abrirModalReceita(categoriaId, categoriaNome, mes, ano, unidadeId) {
 function fecharModalReceita() {
     document.getElementById('modalReceita').classList.add('hidden');
 }
+
+// Função para abrir modal com categorias de receitas por tipo de custo
+function abrirModalReceitaTipoCusto(tipoCusto, mes, ano, unidadeId) {
+    document.getElementById('modalReceitaTipoCustoTitulo').textContent = 'Categorias de Receitas - ' + tipoCusto;
+    document.getElementById('modalReceitaTipoCustoCorpo').innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i><p class="mt-2 text-gray-500">Carregando...</p></div>';
+    document.getElementById('modalReceitaTipoCusto').classList.remove('hidden');
+    
+    // Fazer requisição AJAX para buscar categorias
+    fetch(`/admin/dashboard-financeira/categorias-por-tipo-custo-receitas?tipo_custo=${encodeURIComponent(tipoCusto)}&mes=${mes}&ano=${ano}&unidade_id=${unidadeId}`)
+        .then(response => response.json())
+        .then(data => {
+            let html = '';
+            if (data.length > 0) {
+                html = '<div class="space-y-3">';
+                data.forEach((categoria, index) => {
+                    const cor = categoria.cor || ['#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#14B8A6', '#F97316', '#06B6D4', '#6366F1', '#84CC16'][index % 10];
+                    html += `
+                        <div class="flex items-center justify-between mb-2 cursor-pointer hover:bg-gray-50 p-3 rounded transition-colors border border-gray-200"
+                             onclick="abrirModalReceitasCategoriaTipo(${categoria.categoria_id}, '${categoria.categoria_nome}', ${mes}, ${ano}, ${unidadeId})">
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 rounded-full mr-3" style="background-color: ${cor}"></div>
+                                <span class="text-sm font-medium">${categoria.categoria_nome}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="font-semibold">R$ ${parseFloat(categoria.total).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                <span class="text-xs text-gray-500 ml-2">(${categoria.quantidade} ${categoria.quantidade == 1 ? 'lançamento' : 'lançamentos'})</span>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 ml-6 mb-3">
+                            <div class="h-2 rounded-full" 
+                                 style="width: ${data[0].total > 0 ? (categoria.total / data[0].total * 100) : 0}%; 
+                                        background-color: ${cor}">
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            } else {
+                html = '<p class="text-center text-gray-500 py-4">Nenhuma categoria encontrada para este tipo de custo.</p>';
+            }
+            document.getElementById('modalReceitaTipoCustoCorpo').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            document.getElementById('modalReceitaTipoCustoCorpo').innerHTML = '<p class="text-center text-red-500 py-4">Erro ao carregar os dados.</p>';
+        });
+}
+
+// Função para abrir modal com lançamentos de receitas da categoria
+function abrirModalReceitasCategoriaTipo(categoriaId, categoriaNome, mes, ano, unidadeId) {
+    document.getElementById('modalReceitaTipoCustoTitulo').textContent = 'Receitas - ' + categoriaNome;
+    document.getElementById('modalReceitaTipoCustoCorpo').innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i><p class="mt-2 text-gray-500">Carregando...</p></div>';
+    
+    // Fazer requisição AJAX para buscar receitas da categoria
+    fetch(`/admin/dashboard-financeira/receitas-por-categoria?categoria_id=${categoriaId}&mes=${mes}&ano=${ano}&unidade_id=${unidadeId}`)
+        .then(response => response.json())
+        .then(data => {
+            let html = '';
+            if (data.length > 0) {
+                html = '<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200">';
+                html += '<thead class="bg-gray-50"><tr>';
+                html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>';
+                html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>';
+                html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>';
+                html += '<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor</th>';
+                html += '<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>';
+                html += '</tr></thead><tbody class="bg-white divide-y divide-gray-200">';
+                
+                data.forEach(lancamento => {
+                    const statusColor = lancamento.status === 'Recebido' ? 'text-green-600' : 
+                                       lancamento.status === 'Pendente' ? 'text-yellow-600' : 'text-red-600';
+                    html += `<tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">${lancamento.data_vencimento}</td>
+                        <td class="px-6 py-4 text-sm">${lancamento.descricao}</td>
+                        <td class="px-6 py-4 text-sm">${lancamento.cliente}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">R$ ${lancamento.valor}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm ${statusColor}">${lancamento.status}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                
+                // Adicionar botão para voltar às categorias
+                html += `
+                    <div class="mt-4 pt-4 border-t">
+                        <button onclick="abrirModalReceitaTipoCusto('${document.getElementById('modalReceitaTipoCustoTitulo').textContent.replace('Receitas - ', '').replace('Categorias de Receitas - ', '')}', ${mes}, ${ano}, ${unidadeId})" 
+                                class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            <i class="fas fa-arrow-left mr-2"></i>Voltar para categorias
+                        </button>
+                    </div>
+                `;
+            } else {
+                html = '<p class="text-center text-gray-500 py-4">Nenhuma receita encontrada para esta categoria.</p>';
+            }
+            document.getElementById('modalReceitaTipoCustoCorpo').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            document.getElementById('modalReceitaTipoCustoCorpo').innerHTML = '<p class="text-center text-red-500 py-4">Erro ao carregar os dados.</p>';
+        });
+}
+
+function fecharModalReceitaTipoCusto() {
+    document.getElementById('modalReceitaTipoCusto').classList.add('hidden');
+}
 </script>
 
 <!-- Modal Lançamentos por Tipo de Custo -->
@@ -840,6 +877,34 @@ function fecharModalReceita() {
             </div>
             <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button type="button" onclick="fecharModalReceita()" class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Receitas por Tipo de Custo -->
+<div id="modalReceitaTipoCusto" class="fixed z-50 inset-0 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 id="modalReceitaTipoCustoTitulo" class="text-lg leading-6 font-medium text-gray-900">Receitas por Tipo de Custo</h3>
+                    <button onclick="fecharModalReceitaTipoCusto()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div id="modalReceitaTipoCustoCorpo">
+                    <!-- Conteúdo carregado via AJAX -->
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" onclick="fecharModalReceitaTipoCusto()" class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                     Fechar
                 </button>
             </div>
