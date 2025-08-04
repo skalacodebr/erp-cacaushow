@@ -73,6 +73,7 @@ Route::prefix('admin')->name('admin.')->middleware(['web', App\Http\Middleware\A
         'contas-pagar' => 'conta_pagar'
     ]);
     Route::post('contas-pagar/{conta_pagar}/pagar', [ContaPagarController::class, 'pagar'])->name('contas-pagar.pagar');
+    Route::patch('contas-pagar/{conta_pagar}/marcar-pago', [ContaPagarController::class, 'marcarPago'])->name('contas-pagar.marcar-pago');
     
     Route::resource('contas-receber', ContaReceberController::class)->parameters([
         'contas-receber' => 'conta_receber'

@@ -134,6 +134,13 @@
                             <a href="{{ route('admin.contas-pagar.edit', $conta->id) }}" class="text-yellow-600 hover:text-yellow-900 mr-3">Editar</a>
                             @if($conta->status == 'pendente')
                                 <button onclick="abrirModalPagar({{ $conta->id }}, '{{ number_format($conta->valor, 2, ',', '.') }}')" class="text-green-600 hover:text-green-900 mr-3">Pagar</button>
+                                <form action="{{ route('admin.contas-pagar.marcar-pago', $conta->id) }}" method="POST" class="inline">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="text-blue-600 hover:text-blue-900 mr-3" onclick="return confirm('Tem certeza que deseja marcar esta conta como paga?')">
+                                        Marcar Pago
+                                    </button>
+                                </form>
                             @endif
                             <form action="{{ route('admin.contas-pagar.destroy', $conta->id) }}" method="POST" class="inline">
                                 @csrf

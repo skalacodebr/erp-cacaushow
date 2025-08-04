@@ -13,6 +13,24 @@ use Carbon\Carbon;
 
 class ContaPagarController extends Controller
 {
+    public function marcarPago(string $id)
+    {
+        $conta = ContaPagar::findOrFail($id);
+        
+        // Verificar se a conta está pendente
+        if ($conta->status !== 'pendente') {
+            return redirect()->back()->with('error', 'Esta conta não está pendente.');
+        }
+        
+        // Marcar como pago sem vincular conta bancária
+        $conta->update([
+            'status' => 'pago',
+            'data_pagamento' => now()
+        ]);
+        
+        return redirect()->back()->with('success', 'Conta marcada como paga com sucesso!');
+    }
+    
     public function pagar(Request $request, string $id)
     {
         $conta = ContaPagar::findOrFail($id);
@@ -25,11 +43,6 @@ class ContaPagarController extends Controller
         // Buscar a conta bancária
         $contaBancaria = ContaBancaria::findOrFail($validated['conta_bancaria_id']);
         
-        // Verificar se há saldo suficiente
-        if ($contaBancaria->saldo < $conta->valor) {
-            return redirect()->back()->with('error', 'Saldo insuficiente na conta bancária selecionada.');
-        }
-        
         // Atualizar o status da conta para pago
         $conta->update([
             'status' => 'pago',
@@ -37,7 +50,7 @@ class ContaPagarController extends Controller
             'conta_bancaria_id' => $validated['conta_bancaria_id']
         ]);
         
-        // Diminuir o saldo da conta bancária
+        // Diminuir o saldo da conta bancária (permitindo saldo negativo)
         $contaBancaria->decrement('saldo', $conta->valor);
         
         return redirect()->back()->with('success', 'Conta paga com sucesso! Saldo da conta bancária atualizado.');
@@ -203,12 +216,7 @@ class ContaPagarController extends Controller
         if ($statusAnterior !== 'pago' && $validated['status'] === 'pago' && $validated['conta_bancaria_id']) {
             $contaBancaria = ContaBancaria::findOrFail($validated['conta_bancaria_id']);
             
-            // Verificar se há saldo suficiente
-            if ($contaBancaria->saldo < $validated['valor']) {
-                return redirect()->back()->with('error', 'Saldo insuficiente na conta bancária selecionada.');
-            }
-            
-            // Diminuir o saldo da conta bancária
+            // Diminuir o saldo da conta bancária (permitindo saldo negativo)
             $contaBancaria->decrement('saldo', $validated['valor']);
         }
         
