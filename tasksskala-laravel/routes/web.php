@@ -15,6 +15,10 @@ use App\Http\Controllers\Admin\FornecedorController;
 use App\Http\Controllers\Admin\PlanoContasController;
 use App\Http\Controllers\Admin\ClienteController;
 use App\Http\Controllers\Admin\UnidadeController;
+use App\Http\Controllers\Admin\ListaContatosController;
+use App\Http\Controllers\Admin\ContatoController;
+use App\Http\Controllers\Admin\CampanhaController;
+use App\Http\Controllers\Admin\ImportacaoContatosController;
 
 // Rota principal - redireciona para admin login
 Route::get('/', function () {
@@ -87,4 +91,17 @@ Route::prefix('admin')->name('admin.')->middleware(['web', App\Http\Middleware\A
     Route::get('importacao-ofx/conciliar', [ImportacaoOfxController::class, 'conciliar'])->name('importacao-ofx.conciliar');
     Route::post('importacao-ofx/conciliar/{transacao}', [ImportacaoOfxController::class, 'conciliarTransacao'])->name('importacao-ofx.conciliar-transacao');
     Route::get('importacao-ofx/buscar-contas/{transacao}', [ImportacaoOfxController::class, 'buscarContasSugeridas'])->name('importacao-ofx.buscar-contas');
+    
+    // Rotas de Listas de Contatos e Campanhas
+    Route::resource('listas-contatos', ListaContatosController::class)->parameters([
+        'listas-contatos' => 'listaContato'
+    ]);
+    
+    Route::resource('contatos', ContatoController::class);
+    
+    Route::resource('campanhas', CampanhaController::class);
+    Route::post('campanhas/{campanha}/enviar', [CampanhaController::class, 'enviar'])->name('campanhas.enviar');
+    
+    Route::get('importacao-contatos', [ImportacaoContatosController::class, 'index'])->name('importacao-contatos.index');
+    Route::post('importacao-contatos/importar', [ImportacaoContatosController::class, 'importar'])->name('importacao-contatos.importar');
 });
