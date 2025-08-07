@@ -138,29 +138,6 @@
                         <i class="fas fa-file-import w-5"></i>
                         <span class="font-medium">Importação OFX</span>
                     </a>
-                </div>
-                
-                <!-- Marketing Seção -->
-                <div class="pt-6">
-                    <div class="text-xs uppercase text-purple-200 font-semibold tracking-wider mb-4 px-3">
-                        Marketing
-                    </div>
-                    
-                    <a href="{{ route('admin.listas-contatos.index') }}" class="nav-item {{ request()->routeIs('admin.listas-contatos.*') ? 'active' : '' }} flex items-center space-x-4 py-3 px-4 rounded-xl">
-                        <i class="fas fa-list w-5"></i>
-                        <span class="font-medium">Listas de Contatos</span>
-                    </a>
-                    
-                    <a href="{{ route('admin.campanhas.index') }}" class="nav-item {{ request()->routeIs('admin.campanhas.*') ? 'active' : '' }} flex items-center space-x-4 py-3 px-4 rounded-xl">
-                        <i class="fas fa-envelope w-5"></i>
-                        <span class="font-medium">Campanhas</span>
-                    </a>
-                    
-                    <a href="{{ route('admin.importacao-contatos.index') }}" class="nav-item {{ request()->routeIs('admin.importacao-contatos.*') ? 'active' : '' }} flex items-center space-x-4 py-3 px-4 rounded-xl">
-                        <i class="fas fa-file-excel w-5"></i>
-                        <span class="font-medium">Importar Contatos</span>
-                    </a>
-                </div>
                     
                     <div class="absolute bottom-6 left-6 right-6">
                 <form method="POST" action="{{ route('admin.logout') }}">
