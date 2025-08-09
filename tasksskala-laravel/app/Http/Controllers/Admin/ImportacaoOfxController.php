@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\OfxParser;
+use App\Services\ExtratoXlsxParser;
 use App\Models\ContaPagar;
 use App\Models\ContaReceber;
 use App\Models\TransacaoOfx;
@@ -31,18 +32,26 @@ class ImportacaoOfxController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'arquivo_ofx' => 'required|file|mimes:ofx,txt,xml|max:5120',
+            'arquivo' => 'required|file|mimes:ofx,txt,xml,xlsx,xls|max:10240',
             'tipo_conta' => 'required|in:pagar,receber'
         ]);
 
         try {
             DB::beginTransaction();
 
-            $arquivo = $request->file('arquivo_ofx');
-            $conteudo = file_get_contents($arquivo->getRealPath());
+            $arquivo = $request->file('arquivo');
+            $extensao = strtolower($arquivo->getClientOriginalExtension());
             
-            $parser = new OfxParser($conteudo);
-            $dados = $parser->parse();
+            // Determina qual parser usar baseado na extensão
+            if (in_array($extensao, ['xlsx', 'xls'])) {
+                $parser = new ExtratoXlsxParser($arquivo->getRealPath());
+                $dados = $parser->parse();
+            } else {
+                // OFX, TXT ou XML
+                $conteudo = file_get_contents($arquivo->getRealPath());
+                $parser = new OfxParser($conteudo);
+                $dados = $parser->parse();
+            }
             
             $transacoesImportadas = 0;
             $transacoesConciliadas = 0;
@@ -57,6 +66,22 @@ class ImportacaoOfxController extends Controller
                     continue;
                 }
                 
+                // Determina o tipo de conta baseado no valor da transação
+                $tipoContaReal = $request->tipo_conta;
+                
+                // Se o valor é negativo (débito/saída), é uma conta a pagar
+                // Se o valor é positivo (crédito/entrada), é uma conta a receber
+                if ($transacao['amount'] < 0) {
+                    $tipoContaReal = 'pagar';
+                } else {
+                    $tipoContaReal = 'receber';
+                }
+                
+                // Para manter compatibilidade, se o usuário forçar um tipo, respeita
+                if ($request->has('forcar_tipo') && $request->forcar_tipo == 'true') {
+                    $tipoContaReal = $request->tipo_conta;
+                }
+                
                 // Cria a transação OFX
                 $transacaoOfx = TransacaoOfx::create([
                     'fitid' => $transacao['fitid'],
@@ -69,7 +94,7 @@ class ImportacaoOfxController extends Controller
                     'conta_bancaria' => $dados['account']['accountid'] ?? null,
                     'banco' => $dados['account']['bankid'] ?? null,
                     'status' => 'pendente',
-                    'tipo_conta' => $request->tipo_conta,
+                    'tipo_conta' => $tipoContaReal,
                     'dados_originais' => json_encode($transacao)
                 ]);
                 
@@ -96,7 +121,24 @@ class ImportacaoOfxController extends Controller
                 
         } catch (\Exception $e) {
             DB::rollback();
-            return back()->with('error', 'Erro ao importar arquivo: ' . $e->getMessage());
+            
+            // Log do erro para debug
+            \Log::error('Erro na importação de arquivo: ' . $e->getMessage(), [
+                'arquivo' => $arquivo->getClientOriginalName(),
+                'extensao' => $extensao ?? 'desconhecida',
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            $mensagemErro = 'Erro ao importar arquivo: ' . $e->getMessage();
+            
+            // Mensagens de erro mais amigáveis
+            if (strpos($e->getMessage(), 'parse OFX') !== false) {
+                $mensagemErro = 'O arquivo OFX está mal formatado ou corrompido. Verifique se o arquivo foi exportado corretamente do seu banco.';
+            } elseif (strpos($e->getMessage(), 'processar arquivo XLSX') !== false) {
+                $mensagemErro = 'Erro ao processar planilha Excel. Verifique se o arquivo está no formato correto e contém as colunas esperadas.';
+            }
+            
+            return back()->with('error', $mensagemErro);
         }
     }
 
