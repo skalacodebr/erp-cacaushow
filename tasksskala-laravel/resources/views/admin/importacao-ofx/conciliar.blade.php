@@ -151,15 +151,40 @@ function abrirModalConciliacao(transacaoId) {
     transacaoAtual = transacaoId;
     document.getElementById('modalConciliacao').classList.remove('hidden');
     
-    // Buscar detalhes da transação
+    // Buscar dados da transação da linha da tabela
+    const linha = document.getElementById(`transacao-${transacaoId}`);
+    if (linha) {
+        const data = linha.querySelector('td:nth-child(1)').textContent;
+        const descricao = linha.querySelector('td:nth-child(2)').textContent;
+        const beneficiario = linha.querySelector('td:nth-child(3)').textContent;
+        const valor = linha.querySelector('td:nth-child(4) span').textContent;
+        const tipo = linha.querySelector('td:nth-child(5) span').textContent;
+        
+        // Preencher detalhes da transação no modal
+        document.getElementById('detalhesTransacao').innerHTML = `
+            <h4 class="font-semibold mb-2">Detalhes da Transação:</h4>
+            <p class="text-sm"><strong>Data:</strong> ${data}</p>
+            <p class="text-sm"><strong>Descrição:</strong> ${descricao}</p>
+            <p class="text-sm"><strong>Beneficiário:</strong> ${beneficiario}</p>
+            <p class="text-sm"><strong>Valor:</strong> ${valor}</p>
+            <p class="text-sm"><strong>Tipo:</strong> ${tipo}</p>
+        `;
+    }
+    
+    // Buscar detalhes da transação e contas sugeridas
     fetch(`/admin/importacao-ofx/buscar-contas/${transacaoId}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erro ao buscar contas');
+            }
+            return response.json();
+        })
         .then(data => {
             // Preencher sugestões
             const contasSugeridas = document.getElementById('contasSugeridas');
             contasSugeridas.innerHTML = '';
             
-            if (data.length > 0) {
+            if (data && data.length > 0) {
                 data.forEach(conta => {
                     const item = document.createElement('div');
                     item.className = 'p-3 border rounded hover:bg-gray-50 cursor-pointer';
@@ -180,10 +205,14 @@ function abrirModalConciliacao(transacaoId) {
             } else {
                 contasSugeridas.innerHTML = '<p class="text-gray-500 text-sm">Nenhuma conta sugerida encontrada.</p>';
             }
+        })
+        .catch(error => {
+            console.error('Erro ao buscar contas:', error);
+            document.getElementById('contasSugeridas').innerHTML = '<p class="text-red-500 text-sm">Erro ao buscar contas sugeridas.</p>';
         });
     
     // Carregar todas as contas no select
-    carregarTodasContas();
+    carregarTodasContas(transacaoId);
 }
 
 function fecharModal() {
@@ -208,11 +237,47 @@ function mudarAba(aba) {
     botaoAtivo.classList.add('border-blue-500', 'text-blue-600');
 }
 
-function carregarTodasContas() {
-    // Aqui você implementaria a lógica para carregar todas as contas
-    // Por enquanto, vamos deixar um placeholder
+function carregarTodasContas(transacaoId) {
     const select = document.getElementById('selectConta');
-    select.innerHTML = '<option value="">Selecione uma conta...</option>';
+    select.innerHTML = '<option value="">Carregando contas...</option>';
+    
+    // Determinar o tipo de conta baseado na transação
+    const linha = document.getElementById(`transacao-${transacaoId}`);
+    let tipoConta = 'pagar';
+    
+    if (linha) {
+        const tipoTexto = linha.querySelector('td:nth-child(5) span').textContent;
+        if (tipoTexto.includes('Receber')) {
+            tipoConta = 'receber';
+        }
+    }
+    
+    // Por enquanto vamos criar opções manuais
+    // Idealmente isso viria de uma API
+    select.innerHTML = `
+        <option value="">Selecione uma conta...</option>
+        <option value="criar_nova">-- Criar Nova Conta --</option>
+    `;
+    
+    // Se quiser criar nova conta automaticamente
+    const dadosNovaConta = document.getElementById('dadosNovaConta');
+    if (dadosNovaConta && linha) {
+        const descricao = linha.querySelector('td:nth-child(2)').textContent;
+        const beneficiario = linha.querySelector('td:nth-child(3)').textContent;
+        const valor = linha.querySelector('td:nth-child(4) span').textContent;
+        const data = linha.querySelector('td:nth-child(1)').textContent;
+        
+        dadosNovaConta.innerHTML = `
+            <p class="text-sm mb-2"><strong>Nova conta será criada com:</strong></p>
+            <ul class="text-sm space-y-1">
+                <li>• Descrição: ${descricao}</li>
+                <li>• ${tipoConta === 'pagar' ? 'Fornecedor' : 'Cliente'}: ${beneficiario}</li>
+                <li>• Valor: ${valor}</li>
+                <li>• Data: ${data}</li>
+                <li>• Status: ${tipoConta === 'pagar' ? 'Pago' : 'Recebido'}</li>
+            </ul>
+        `;
+    }
 }
 
 function selecionarConta(contaId) {
@@ -239,11 +304,21 @@ function confirmarConciliacao() {
 }
 
 function conciliarTransacao(transacaoId, acao, contaId) {
+    console.log('Conciliando transação:', transacaoId, 'Ação:', acao, 'Conta ID:', contaId);
+    
     const dados = {
         acao: acao,
         conta_id: contaId,
         _token: '{{ csrf_token() }}'
     };
+    
+    // Mostrar loading
+    const btnConfirmar = document.querySelector('button[onclick="confirmarConciliacao()"]');
+    const textoOriginal = btnConfirmar ? btnConfirmar.innerHTML : '';
+    if (btnConfirmar) {
+        btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processando...';
+        btnConfirmar.disabled = true;
+    }
     
     fetch(`/admin/importacao-ofx/conciliar/${transacaoId}`, {
         method: 'POST',
@@ -253,30 +328,74 @@ function conciliarTransacao(transacaoId, acao, contaId) {
         },
         body: JSON.stringify(dados)
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('Response data:', data);
+        
         if (data.success) {
             // Remover linha da tabela
-            document.getElementById(`transacao-${transacaoId}`).remove();
+            const linha = document.getElementById(`transacao-${transacaoId}`);
+            if (linha) {
+                linha.style.opacity = '0.5';
+                linha.style.transition = 'opacity 0.5s';
+                setTimeout(() => linha.remove(), 500);
+            }
             
             // Fechar modal se estiver aberto
             fecharModal();
             
             // Mostrar mensagem de sucesso
-            alert('Transação processada com sucesso!');
+            mostrarNotificacao('Transação processada com sucesso!', 'success');
             
-            // Recarregar se não houver mais transações
-            if (document.querySelectorAll('tbody tr').length === 0) {
-                window.location.reload();
-            }
+            // Recarregar se não houver mais transações após 1 segundo
+            setTimeout(() => {
+                if (document.querySelectorAll('tbody tr').length === 1) {
+                    window.location.reload();
+                }
+            }, 1000);
         } else {
-            alert('Erro ao processar transação: ' + data.message);
+            mostrarNotificacao('Erro: ' + (data.message || 'Erro desconhecido'), 'error');
         }
     })
     .catch(error => {
-        alert('Erro ao processar transação');
-        console.error(error);
+        console.error('Erro completo:', error);
+        mostrarNotificacao('Erro ao processar transação: ' + error.message, 'error');
+    })
+    .finally(() => {
+        // Restaurar botão
+        if (btnConfirmar) {
+            btnConfirmar.innerHTML = textoOriginal;
+            btnConfirmar.disabled = false;
+        }
     });
+}
+
+function mostrarNotificacao(mensagem, tipo) {
+    // Criar notificação temporária
+    const notificacao = document.createElement('div');
+    notificacao.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
+        tipo === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+    }`;
+    notificacao.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>
+            <span>${mensagem}</span>
+        </div>
+    `;
+    document.body.appendChild(notificacao);
+    
+    // Remover após 3 segundos
+    setTimeout(() => {
+        notificacao.style.opacity = '0';
+        notificacao.style.transition = 'opacity 0.5s';
+        setTimeout(() => notificacao.remove(), 500);
+    }, 3000);
 }
 
 function formatarData(data) {
