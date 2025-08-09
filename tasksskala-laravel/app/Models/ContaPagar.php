@@ -14,6 +14,7 @@ class ContaPagar extends Model
         'data_vencimento',
         'data_pagamento',
         'conta_bancaria_id',
+        'categoria',
         'categoria_id',
         'fornecedor_id',
         'fornecedor',
@@ -24,6 +25,8 @@ class ContaPagar extends Model
         'periodicidade',
         'data_fim_recorrencia',
         'status',
+        'forma_pagamento',
+        'numero_documento',
         'observacoes'
     ];
 
