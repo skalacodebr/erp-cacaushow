@@ -79,6 +79,11 @@
                         Financeiro
                     </div>
                     
+                    <a href="{{ route('admin.atencao.index') }}" class="nav-item {{ request()->routeIs('admin.atencao.*') ? 'active' : '' }} flex items-center space-x-4 py-3 px-4 rounded-xl">
+                        <i class="fas fa-exclamation-triangle w-5 text-yellow-300"></i>
+                        <span class="font-medium">Atenção</span>
+                    </a>
+                    
                     <a href="{{ route('admin.dashboard-financeira.index') }}" class="nav-item {{ request()->routeIs('admin.dashboard-financeira.*') ? 'active' : '' }} flex items-center space-x-4 py-3 px-4 rounded-xl">
                         <i class="fas fa-chart-pie w-5"></i>
                         <span class="font-medium">Dashboard Financeira</span>

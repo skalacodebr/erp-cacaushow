@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\ListaContatosController;
 use App\Http\Controllers\Admin\ContatoController;
 use App\Http\Controllers\Admin\CampanhaController;
 use App\Http\Controllers\Admin\ImportacaoContatosController;
+use App\Http\Controllers\Admin\AtencaoController;
 
 // Rota principal - redireciona para admin login
 Route::get('/', function () {
@@ -37,6 +38,7 @@ Route::prefix('admin')->name('admin.')->middleware(['web', App\Http\Middleware\A
     Route::get('/', [AdminController::class, 'index'])->name('dashboard');
     
     // Rotas do Sistema Financeiro
+    Route::get('atencao', [AtencaoController::class, 'index'])->name('atencao.index');
     Route::get('dashboard-financeira', [DashboardFinanceiraController::class, 'index'])->name('dashboard-financeira.index');
     Route::get('dashboard-financeira/lancamentos-tipo-custo', [DashboardFinanceiraController::class, 'lancamentosTipoCusto'])->name('dashboard-financeira.lancamentos-tipo-custo');
     Route::get('dashboard-financeira/categorias-por-tipo-custo', [DashboardFinanceiraController::class, 'categoriasPorTipoCusto'])->name('dashboard-financeira.categorias-por-tipo-custo');
