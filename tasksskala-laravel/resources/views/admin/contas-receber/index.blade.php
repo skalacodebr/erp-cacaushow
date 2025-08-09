@@ -153,7 +153,7 @@
     </div>
 
     <div class="mt-4">
-        {{ $contas->links() }}
+        {{ $contas->appends(request()->query())->links() }}
     </div>
 </div>
 
