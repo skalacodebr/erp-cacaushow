@@ -17,6 +17,7 @@ class ContaReceber extends Model
         'cliente_id',
         'cliente_nome',
         'unidade_id',
+        'categoria',
         'categoria_id',
         'tipo',
         'parcela_atual',
@@ -24,6 +25,8 @@ class ContaReceber extends Model
         'periodicidade',
         'data_fim_recorrencia',
         'status',
+        'forma_recebimento',
+        'numero_documento',
         'observacoes'
     ];
 
