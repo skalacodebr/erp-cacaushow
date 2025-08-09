@@ -140,6 +140,200 @@
     </div>
 </div>
 
+<script>
+// Funções críticas definidas inline para garantir disponibilidade
+window.abrirModalConciliacao = function(transacaoId) {
+    window.transacaoAtual = transacaoId;
+    const modal = document.getElementById('modalConciliacao');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'block';
+    }
+    
+    // Buscar dados da transação
+    const linha = document.getElementById(`transacao-${transacaoId}`);
+    if (linha) {
+        const data = linha.querySelector('td:nth-child(1)').textContent;
+        const descricao = linha.querySelector('td:nth-child(2)').textContent;
+        const beneficiario = linha.querySelector('td:nth-child(3)').textContent;
+        const valor = linha.querySelector('td:nth-child(4) span').textContent;
+        const tipo = linha.querySelector('td:nth-child(5) span').textContent;
+        
+        const detalhes = document.getElementById('detalhesTransacao');
+        if (detalhes) {
+            detalhes.innerHTML = `
+                <h4 class="font-semibold mb-2">Detalhes da Transação:</h4>
+                <p class="text-sm"><strong>Data:</strong> ${data}</p>
+                <p class="text-sm"><strong>Descrição:</strong> ${descricao}</p>
+                <p class="text-sm"><strong>Beneficiário:</strong> ${beneficiario}</p>
+                <p class="text-sm"><strong>Valor:</strong> ${valor}</p>
+                <p class="text-sm"><strong>Tipo:</strong> ${tipo}</p>
+            `;
+        }
+    }
+    
+    // Carregar contas sugeridas
+    fetch(`/admin/importacao-ofx/buscar-contas/${transacaoId}`)
+        .then(response => response.json())
+        .then(data => {
+            const contasSugeridas = document.getElementById('contasSugeridas');
+            if (contasSugeridas) {
+                if (data && data.length > 0) {
+                    contasSugeridas.innerHTML = data.map(conta => {
+                        // Garantir que o valor é um número
+                        const valor = parseFloat(conta.valor) || 0;
+                        const valorFormatado = valor.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+                        
+                        // Formatar data
+                        let dataFormatada = 'Sem data';
+                        try {
+                            if (conta.data_vencimento) {
+                                dataFormatada = new Date(conta.data_vencimento).toLocaleDateString('pt-BR');
+                            }
+                        } catch (e) {
+                            console.error('Erro ao formatar data:', e);
+                        }
+                        
+                        return `
+                            <div class="p-3 border rounded hover:bg-gray-50 cursor-pointer mb-2">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <strong class="text-sm">${conta.descricao || 'Sem descrição'}</strong><br>
+                                        <small class="text-gray-600">Vencimento: ${dataFormatada} - 
+                                               Valor: R$ ${valorFormatado}</small>
+                                    </div>
+                                    <button onclick="selecionarConta(${conta.id})" class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-xs">
+                                        Selecionar
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    contasSugeridas.innerHTML = '<p class="text-gray-500 text-sm">Nenhuma conta sugerida encontrada.</p>';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao buscar contas:', error);
+        });
+}
+
+window.fecharModal = function() {
+    const modal = document.getElementById('modalConciliacao');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+}
+
+window.ignorarTransacao = function(transacaoId) {
+    if (confirm('Deseja realmente ignorar esta transação?')) {
+        conciliarTransacao(transacaoId, 'ignorar', null);
+    }
+}
+
+window.mudarAba = function(aba) {
+    window.acaoSelecionada = aba;
+    
+    // Atualizar visual das abas
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    const abaContent = document.getElementById(aba);
+    if (abaContent) abaContent.classList.remove('hidden');
+    
+    // Atualizar botões
+    document.querySelectorAll('nav button').forEach(btn => {
+        btn.classList.remove('border-blue-500', 'text-blue-600');
+        btn.classList.add('border-transparent', 'text-gray-500');
+    });
+    
+    const botaoAtivo = document.getElementById(aba + '-tab');
+    if (botaoAtivo) {
+        botaoAtivo.classList.remove('border-transparent', 'text-gray-500');
+        botaoAtivo.classList.add('border-blue-500', 'text-blue-600');
+    }
+}
+
+window.selecionarConta = function(contaId) {
+    const select = document.getElementById('selectConta');
+    if (select) select.value = contaId;
+}
+
+window.confirmarConciliacao = function() {
+    const acaoSelecionada = window.acaoSelecionada || 'vincular';
+    
+    if (acaoSelecionada === 'vincular') {
+        const contaId = document.getElementById('selectConta')?.value;
+        if (!contaId) {
+            alert('Por favor, selecione uma conta');
+            return;
+        }
+        conciliarTransacao(window.transacaoAtual, 'vincular', contaId);
+    } else {
+        conciliarTransacao(window.transacaoAtual, 'criar', null);
+    }
+}
+
+window.conciliarTransacao = function(transacaoId, acao, contaId) {
+    console.log('Conciliando transação:', transacaoId, 'Ação:', acao, 'Conta ID:', contaId);
+    
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    const dados = {
+        acao: acao,
+        conta_id: contaId,
+        _token: csrfToken
+    };
+    
+    fetch(`/admin/importacao-ofx/conciliar/${transacaoId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken
+        },
+        body: JSON.stringify(dados)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Remover linha da tabela
+            const linha = document.getElementById(`transacao-${transacaoId}`);
+            if (linha) {
+                linha.style.opacity = '0.5';
+                setTimeout(() => linha.remove(), 500);
+            }
+            
+            // Fechar modal
+            fecharModal();
+            
+            // Mostrar sucesso
+            alert('Transação processada com sucesso!');
+            
+            // Recarregar se não houver mais transações
+            setTimeout(() => {
+                if (document.querySelectorAll('tbody tr').length === 0) {
+                    window.location.reload();
+                }
+            }, 1000);
+        } else {
+            alert('Erro: ' + (data.message || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        alert('Erro ao processar transação: ' + error.message);
+    });
+}
+
+// Definir variável global
+window.acaoSelecionada = 'vincular';
+</script>
+
 @endsection
 
 @push('scripts')
@@ -399,12 +593,32 @@ function mostrarNotificacao(mensagem, tipo) {
 }
 
 function formatarData(data) {
-    const d = new Date(data);
-    return d.toLocaleDateString('pt-BR');
+    try {
+        if (!data) return 'Sem data';
+        const d = new Date(data);
+        if (isNaN(d.getTime())) return 'Data inválida';
+        return d.toLocaleDateString('pt-BR');
+    } catch (e) {
+        console.error('Erro ao formatar data:', e);
+        return 'Erro na data';
+    }
 }
 
 function formatarValor(valor) {
-    return valor.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+    try {
+        // Converte para número se for string
+        const num = typeof valor === 'string' ? parseFloat(valor) : valor;
+        
+        if (isNaN(num)) {
+            console.warn('Valor inválido para formatação:', valor);
+            return '0,00';
+        }
+        
+        return num.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+    } catch (e) {
+        console.error('Erro ao formatar valor:', e);
+        return '0,00';
+    }
 }
 </script>
 @endpush
