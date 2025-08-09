@@ -33,7 +33,7 @@ class ContaReceberController extends Controller
         ]);
         
         // Aumentar o saldo da conta bancária
-        $contaBancaria->increment('saldo', $conta->valor);
+        $contaBancaria->increment('saldo_atual', $conta->valor);
         
         return redirect()->back()->with('success', 'Conta recebida com sucesso! Saldo da conta bancária atualizado.');
     }
@@ -195,7 +195,7 @@ class ContaReceberController extends Controller
             $contaBancaria = ContaBancaria::findOrFail($validated['conta_bancaria_id']);
             
             // Aumentar o saldo da conta bancária
-            $contaBancaria->increment('saldo', $validated['valor']);
+            $contaBancaria->increment('saldo_atual', $validated['valor']);
         }
         
         // Verificar se o status mudou de "recebido" para outro status (estorno)
@@ -203,12 +203,12 @@ class ContaReceberController extends Controller
             $contaBancaria = ContaBancaria::findOrFail($conta->conta_bancaria_id);
             
             // Verificar se há saldo suficiente para o estorno
-            if ($contaBancaria->saldo < $conta->valor) {
+            if ($contaBancaria->saldo_atual < $conta->valor) {
                 return redirect()->back()->with('error', 'Saldo insuficiente na conta bancária para realizar o estorno.');
             }
             
             // Subtrair o valor da conta bancária
-            $contaBancaria->decrement('saldo', $conta->valor);
+            $contaBancaria->decrement('saldo_atual', $conta->valor);
         }
 
         $conta->update($validated);

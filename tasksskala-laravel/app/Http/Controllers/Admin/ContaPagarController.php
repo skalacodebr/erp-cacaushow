@@ -51,7 +51,7 @@ class ContaPagarController extends Controller
         ]);
         
         // Diminuir o saldo da conta bancária (permitindo saldo negativo)
-        $contaBancaria->decrement('saldo', $conta->valor);
+        $contaBancaria->decrement('saldo_atual', $conta->valor);
         
         return redirect()->back()->with('success', 'Conta paga com sucesso! Saldo da conta bancária atualizado.');
     }
@@ -217,7 +217,7 @@ class ContaPagarController extends Controller
             $contaBancaria = ContaBancaria::findOrFail($validated['conta_bancaria_id']);
             
             // Diminuir o saldo da conta bancária (permitindo saldo negativo)
-            $contaBancaria->decrement('saldo', $validated['valor']);
+            $contaBancaria->decrement('saldo_atual', $validated['valor']);
         }
         
         // Verificar se o status mudou de "pago" para outro status (estorno)
@@ -225,7 +225,7 @@ class ContaPagarController extends Controller
             $contaBancaria = ContaBancaria::findOrFail($conta->conta_bancaria_id);
             
             // Devolver o valor para a conta bancária
-            $contaBancaria->increment('saldo', $conta->valor);
+            $contaBancaria->increment('saldo_atual', $conta->valor);
         }
 
         $conta->update($validated);
