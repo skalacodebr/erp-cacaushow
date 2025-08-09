@@ -78,7 +78,36 @@
 </div>
 
 <!-- Modal de Conciliação -->
-<div id="modalConciliacao" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50" style="display: none;">
+<style>
+    #modalConciliacao.show {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+    #modalConciliacao {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 9999;
+        overflow-y: auto;
+    }
+    .modal-content {
+        background-color: white;
+        margin: auto;
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 800px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+    }
+</style>
+<div id="modalConciliacao" class="">
     <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
         <div class="flex justify-between items-center pb-3 border-b">
             <h3 class="text-lg font-semibold">Conciliar Transação</h3>
@@ -143,11 +172,18 @@
 <script>
 // Funções críticas definidas inline para garantir disponibilidade
 window.abrirModalConciliacao = function(transacaoId) {
+    console.log('Abrindo modal para transação:', transacaoId);
     window.transacaoAtual = transacaoId;
+    
     const modal = document.getElementById('modalConciliacao');
     if (modal) {
+        // Adiciona a classe show e remove hidden
+        modal.classList.add('show');
         modal.classList.remove('hidden');
-        modal.style.display = 'block';
+        console.log('Modal exibido');
+    } else {
+        console.error('Modal não encontrado no DOM');
+        return;
     }
     
     // Buscar dados da transação
@@ -174,8 +210,12 @@ window.abrirModalConciliacao = function(transacaoId) {
     
     // Carregar contas sugeridas
     fetch(`/admin/importacao-ofx/buscar-contas/${transacaoId}`)
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('Contas sugeridas recebidas:', data);
             const contasSugeridas = document.getElementById('contasSugeridas');
             if (contasSugeridas) {
                 if (data && data.length > 0) {
@@ -220,12 +260,25 @@ window.abrirModalConciliacao = function(transacaoId) {
 }
 
 window.fecharModal = function() {
+    console.log('Fechando modal');
     const modal = document.getElementById('modalConciliacao');
     if (modal) {
+        modal.classList.remove('show');
         modal.classList.add('hidden');
-        modal.style.display = 'none';
     }
 }
+
+// Garantir que o modal seja clicável fora para fechar
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('modalConciliacao');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                fecharModal();
+            }
+        });
+    }
+});
 
 window.ignorarTransacao = function(transacaoId) {
     if (confirm('Deseja realmente ignorar esta transação?')) {
