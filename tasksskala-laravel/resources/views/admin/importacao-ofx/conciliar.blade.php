@@ -78,7 +78,7 @@
 </div>
 
 <!-- Modal de Conciliação -->
-<div id="modalConciliacao" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+<div id="modalConciliacao" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50" style="display: none;">
     <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
         <div class="flex justify-between items-center pb-3 border-b">
             <h3 class="text-lg font-semibold">Conciliar Transação</h3>
@@ -407,4 +407,4 @@ function formatarValor(valor) {
     return valor.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
 }
 </script>
-@endsection
+@endpush
