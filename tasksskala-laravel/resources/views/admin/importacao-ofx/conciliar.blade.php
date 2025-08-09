@@ -142,7 +142,7 @@
 
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 let transacaoAtual = null;
 let acaoSelecionada = 'vincular';
